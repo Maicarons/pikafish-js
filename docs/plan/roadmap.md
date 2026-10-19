@@ -9,12 +9,12 @@
 | 里程碑 | 状态 | 说明 |
 | --- | --- | --- |
 | M0 方案与脚手架 | ✅ 完成 | 文档站、`engine.json`、许可证与来源说明齐备 |
-| M1 WASM 构建 PoC | 🟡 三构建已在本地用 emsdk 3.1.74 实测产出并跑通 UCI；基准数据已写入[系统架构](/plan/architecture)第 13 节 | `scripts/build-wasm.sh` 可复现；本仓库不提交 wasm/nnue，由 CI 与 Release 产出 |
-| M2 核心 API | ✅ 完成 | `pikafish-js` 包：`analyze/play/stop/dispose`、能力探测、缓存、错误码；33 项单测通过 |
-| M3 规则与裁决 | 🟡 主体完成 | FEN、走法、将死/困毙/限着/重复/子力不足、中文记谱；长捉分类器留待 v0.2 |
-| M4 棋盘与演示 | ✅ 完成 | SVG 棋盘、7 档难度、分析、提示、悔棋、双部署配置；已在 Chromium 中逐步验证 |
-| M5 稳定化 | 🟡 部分 | 单测与类型检查通过；跨浏览器矩阵与真机基准待 CI/真机执行 |
-| M6 发布 | 🟡 待触发 | `release.yml` 在 `v*` tag 上打包三构建并创建 Release |
+| M1 WASM 构建 PoC | ✅ 完成 | 三构建用 emsdk 3.1.74 实际产出并跑通 UCI；`dist/release` 含 `SHA256SUMS`；体积与基准写入[系统架构](/plan/architecture)第 13 节与[基准数据](/guide/benchmarks) |
+| M2 核心 API | ✅ 完成 | `pikafish-js` 包：`analyze/play/stop/dispose`、能力探测、缓存、错误码；19 项单测 |
+| M3 规则与裁决 | ✅ 完成（v0.1 范围） | FEN、走法、将死/困毙/限着/重复/子力不足、中文记谱；长捉分类与 39 循环棋例留待 v0.2（当前按“循环即和、长将判负”） |
+| M4 棋盘与演示 | ✅ 完成 | SVG 棋盘、7 档难度、分析、提示、悔棋、双部署配置；`bench.html` 可测三构建 |
+| M5 稳定化 | ✅ 完成（本地） | 44 项单测、Chromium 20 项 e2e、Firefox/WebKit 冒烟全绿；`bench.yml` 周任务与 20% 回归告警已写；**尚未在真实 Actions runner 上执行** |
+| M6 发布 | 🟡 待触发 | `release.yml` 在 `v*` tag 上打包三构建并创建 Release；`check-pack` 已校验 npm 包内容；仓库尚无远端，故 tag/部署未执行 |
 
 > **关键实现差异 1**：Pikafish 的 `ThreadPool` 至少需要一个 pthread，因此**三套构建都要求页面跨源隔离**
 > （COOP/COEP + `SharedArrayBuffer`）。原计划中的“无隔离时自动降级到单线程”在技术上不可行；

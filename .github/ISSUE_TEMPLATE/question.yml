@@ -1,0 +1,36 @@
+name: 使用问题
+description: 集成、部署或理解代码时卡住了
+labels: ['question']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先看[快速开始](https://github.com/official-pikafish/pikafish-js/blob/main/docs/guide/getting-started.md)、
+        [API 参考](https://github.com/official-pikafish/pikafish-js/blob/main/docs/guide/api.md)与
+        [常见问题](https://github.com/official-pikafish/pikafish-js/blob/main/docs/guide/faq.md)。
+        能复现的缺陷请改用“缺陷报告”模板。
+
+  - type: textarea
+    id: question
+    attributes:
+      label: 你的问题
+      description: 想达成什么、现在卡在哪一步
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: 已经试过什么
+      description: 包括看过的文档、改过的配置、得到的报错
+    validations:
+      required: false
+
+  - type: textarea
+    id: code
+    attributes:
+      label: 相关代码或配置
+      description: 去掉密钥与私有地址
+      render: typescript
+    validations:
+      required: false

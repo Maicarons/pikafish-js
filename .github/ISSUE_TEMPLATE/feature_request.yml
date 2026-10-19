@@ -1,0 +1,56 @@
+name: 功能请求
+description: 新的能力、体验改进或 API 变更
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        路线图的 v0.1 范围见 [roadmap](/docs/plan/roadmap.md)。超出范围的想法同样欢迎，但会被排到
+        v0.2 之后。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 要解决的问题
+      description: 描述场景，不要直接给实现方案
+      placeholder: 手机上首屏要等 48 MB 权重下载，期间没有任何可操作内容…
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 期望的方案
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 考虑过的替代方案
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 涉及部分
+      multiple: true
+      options:
+        - 引擎包 API
+        - 规则包
+        - 演示站
+        - 构建 / 部署
+        - 文档
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 确认
+      options:
+        - label: 这个改动不会要求修改上游搜索/评估逻辑
+          required: false
+        - label: 我已搜索现有 issue 与路线图，没有重复
+          required: true

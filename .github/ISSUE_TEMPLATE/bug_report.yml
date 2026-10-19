@@ -1,0 +1,89 @@
+name: 缺陷报告
+description: 引擎、规则、棋盘或部署出了问题
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先查[常见问题](https://github.com/official-pikafish/pikafish-js/blob/main/docs/guide/faq.md)与
+        [部署指南](https://github.com/official-pikafish/pikafish-js/blob/main/docs/guide/deployment.md)，
+        很多“引擎不启动”其实是缺少跨源隔离。
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么
+      description: 现象、报错原文（不要只写“不能用”）
+      placeholder: 点击「开始对局」后一直显示“正在加载引擎”，控制台报 BUILD_UNAVAILABLE…
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开 https://…/?build=single-simd
+        2. 选择难度“高手”
+        3. 走炮二平五
+        4. …
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 影响范围
+      multiple: true
+      options:
+        - 引擎加载 / wasm / 权重
+        - 搜索与分析
+        - 走子合法性 / 裁决 / 记谱
+        - 棋盘与交互 / 无障碍
+        - 构建与部署
+        - 文档
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: 浏览器与系统
+      placeholder: Chrome 156 / Windows 11，或 iOS 18 Safari
+    validations:
+      required: true
+
+  - type: input
+    id: build
+    attributes:
+      label: 构建与引擎信息
+      description: 演示站页脚或控制台 `window.__pikafish.engineInfo`，包含 build / threads / hashMB
+      placeholder: threads-simd, threads=4, hashMB=64, crossOriginIsolated=true
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 控制台与网络
+      description: 控制台错误、失败的请求（状态码与 URL）、`engine.debugLog`（如已开启 debug）
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 确认
+      options:
+        - label: 我在最新 `main` 或最新 Release 上复现过
+          required: true
+        - label: 我已搜索现有 issue，没有重复
+          required: true
