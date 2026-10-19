@@ -30,3 +30,13 @@ npm publish --provenance --workspace pikafish-js --workspace @pikafish-js/rules
 - **`major`** 只用于真正不兼容的 API 变更（`0.x` 期间允许 `minor` 破坏，但要在 CHANGELOG 里写明）；
 - 演示站 `@pikafish-js/demo` 是私有包，不发布，也不记 changeset；
 - 只改文档、CI、测试的 PR 不需要 changeset。
+
+## CI 发布
+
+`.github/workflows/release.yml` 在 `v*` tag 上会：跑单测、编译三套 wasm、校验体积、校验
+npm 包内容、创建/更新 GitHub Release（Release 说明取 `docs/releases/<tag>.md`），最后**如果配置了
+`NPM_TOKEN` secret** 才执行 `npm publish --provenance`。没有该 secret 时发布会跳过并留一条
+notice，不会让整个 release 失败。
+
+`check-pack` 会验证 `repository` 与 `publishConfig.access`，因为 provenance 签名要求前者，
+后者写错要等到发布时才报错。

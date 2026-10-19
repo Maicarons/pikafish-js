@@ -1,4 +1,4 @@
-name: Release WASM assets
+name: Release
 
 on:
   push:
@@ -7,10 +7,13 @@ on:
 
 permissions:
   contents: write
+  # npm provenance signs the attestation with the workflow's OIDC token.
+  id-token: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -20,6 +23,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          registry-url: https://registry.npmjs.org
 
       - name: Setup Emscripten 3.1.74
         uses: mymindstorm/setup-emsdk@v14
@@ -30,20 +34,73 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Unit tests
+        run: npm run test
+
       - name: Build the three WASM variants
         run: npm run build:wasm
 
       - name: Package release assets
         run: npm run package:wasm
 
+      - name: Check artefact sizes
+        run: node scripts/check-size.mjs
+
+      - name: Check what would be published
+        run: |
+          npm run build:rules
+          npm run build:engine
+          npm run check:pack
+
       - name: Create or update the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
-            gh release upload "${{ github.ref_name }}" dist/release/* --clobber
-          else
-            gh release create "${{ github.ref_name }}" dist/release/* \
-              --title "pikafish-js ${{ github.ref_name }}" \
-              --notes "Prebuilt Pikafish WebAssembly variants and SHA256SUMS."
+          tag="${{ github.ref_name }}"
+          notes="docs/releases/${tag}.md"
+          notes_args=(--notes "Prebuilt Pikafish WebAssembly variants and SHA256SUMS.")
+          if [ -f "$notes" ]; then
+            notes_args=(--notes-file "$notes")
           fi
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/release/* --clobber
+            if [ -f "$notes" ]; then
+              gh release edit "$tag" --notes-file "$notes"
+            fi
+          else
+            gh release create "$tag" dist/release/* \
+              --title "pikafish-js $tag" \
+              "${notes_args[@]}"
+          fi
+
+      - name: Check whether npm publishing is configured
+        id: npm
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::NPM_TOKEN is not set; skipping the npm publish step."
+          fi
+
+      - name: Publish the packages
+        if: steps.npm.outputs.enabled == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          version=$(node -p "require('./packages/engine/package.json').version")
+          publish() {
+            local workspace=$1 name=$2
+            if npm view "${name}@${version}" version >/dev/null 2>&1; then
+              echo "${name}@${version} is already on npm; leaving it alone."
+            else
+              npm publish --provenance --access public --workspace "$workspace"
+            fi
+          }
+          # Rules first: the engine package does not depend on it, but a consumer
+          # reading the release notes may install both.
+          publish @pikafish-js/rules @pikafish-js/rules
+          publish pikafish-js pikafish-js

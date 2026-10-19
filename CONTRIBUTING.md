@@ -25,11 +25,12 @@ npm run test            # 单元测试（vitest）
 npm run lint            # ESLint
 npm run format:check    # Prettier 检查（只查代码）
 npm run typecheck       # 各包 + e2e
-npm run verify          # typecheck + test + build
+npm run verify          # typecheck + test + build + 文档链接 + npm 包内容
 npm run test:e2e        # 构建后跑浏览器矩阵
 npm run site            # 组装三套 wasm 并构建演示站
 npm run docs:dev        # 文档站
 npm run bench           # 浏览器基准（需先 npm run site）
+node scripts/check-size.mjs   # wasm/JS 体积预算（需先 npm run package:wasm）
 ```
 
 单个测试：

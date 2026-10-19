@@ -11,6 +11,8 @@
 //   - the tarball stays small enough to publish without care
 
 import { exec } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
@@ -22,6 +24,7 @@ const MAX_TARBALL_BYTES = 2 * 1024 * 1024;
 const expectations = [
   {
     workspace: 'pikafish-js',
+    directory: 'packages/engine',
     required: [
       'LICENSE',
       'NOTICE',
@@ -34,6 +37,7 @@ const expectations = [
   },
   {
     workspace: '@pikafish-js/rules',
+    directory: 'packages/rules',
     required: [
       'LICENSE',
       'NOTICE',
@@ -54,6 +58,18 @@ for (const expectation of expectations) {
   console.log(
     `\n${expectation.workspace} -> ${tarball.filename} (${kb(tarball.size)}, ${paths.length} files)`,
   );
+
+  // npm provenance refuses to sign a package without a repository field, and a
+  // private access flag only fails at the last moment during publish.
+  const manifest = JSON.parse(
+    await readFile(join(root, expectation.directory, 'package.json'), 'utf8'),
+  );
+  if (!String(manifest.repository?.url ?? '').includes('github.com')) {
+    failures.push(`${expectation.workspace}: package.json needs a GitHub repository url`);
+  }
+  if (manifest.publishConfig?.access !== 'public') {
+    failures.push(`${expectation.workspace}: publishConfig.access must be "public"`);
+  }
 
   for (const required of expectation.required) {
     if (!paths.includes(required)) failures.push(`${expectation.workspace}: missing ${required}`);

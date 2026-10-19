@@ -4,6 +4,25 @@
   "description": "Run the Pikafish xiangqi engine in the browser via WebAssembly.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/official-pikafish/pikafish-js.git",
+    "directory": "packages/engine"
+  },
+  "homepage": "https://github.com/official-pikafish/pikafish-js#readme",
+  "bugs": "https://github.com/official-pikafish/pikafish-js/issues",
+  "keywords": [
+    "xiangqi",
+    "chinese-chess",
+    "pikafish",
+    "webassembly",
+    "wasm",
+    "engine",
+    "nnue"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
