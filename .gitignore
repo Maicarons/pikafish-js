@@ -9,6 +9,12 @@ docs/.vitepress/cache/
 dist/
 coverage/
 
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+bench-results/
+
 # Generated engine assets (WASM builds, NNUE weights, upstream checkout)
 assets/
 upstream/

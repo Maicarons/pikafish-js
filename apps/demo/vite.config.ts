@@ -1,5 +1,5 @@
 import { fileURLToPath, URL } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 
 const resolvePath = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
@@ -9,8 +9,49 @@ const isolationHeaders = {
   'Cross-Origin-Resource-Policy': 'cross-origin',
 };
 
+// The demo loads nothing from a third party: the engine glue, its pthread
+// workers and the 48 MB NNUE weights are all same-origin, and the board squares
+// position themselves with inline `style` attributes. `'wasm-unsafe-eval'` is
+// required for WebAssembly compilation (Chrome 97+, Safari 16.4+).
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'wasm-unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "worker-src 'self' blob:",
+  "base-uri 'self'",
+  "form-action 'none'",
+  "object-src 'none'",
+].join('; ');
+
+// Injected into production HTML only: `vite dev` serves inline scripts and a
+// websocket for HMR, which this policy forbids. `vercel.json` sends the same
+// policy as a header on the deployed site.
+function contentSecurityPolicy(): Plugin {
+  return {
+    name: 'pikafish-csp',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler: html => ({
+        html,
+        tags: [
+          {
+            tag: 'meta',
+            attrs: { 'http-equiv': 'Content-Security-Policy', content: CSP },
+            injectTo: 'head-prepend',
+          },
+        ],
+      }),
+    },
+  };
+}
+
 export default defineConfig({
   base: process.env.VITE_BASE || '/',
+  plugins: [contentSecurityPolicy()],
   server: {
     headers: isolationHeaders,
   },

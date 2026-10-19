@@ -120,9 +120,25 @@ async function boot(): Promise<void> {
       engine?.dispose();
     }
     render(rows, manifest);
+    publish(rows, manifest, false);
   }
 
   setStatus('完成。数字只反映本机，可用于判断该设备适合哪套构建。');
+  publish(rows, manifest, true);
+}
+
+// Machine-readable copy for `scripts/bench.mjs` and the e2e suite. The table and
+// the Markdown block stay the primary output; this only saves scraping them.
+function publish(rows: Row[], manifest: Manifest, done: boolean): void {
+  (window as unknown as { __bench?: unknown }).__bench = {
+    done,
+    movetime,
+    fen,
+    version: manifest.version,
+    upstreamCommit: manifest.upstreamCommit,
+    environment: describeEnvironment(),
+    rows,
+  };
 }
 
 const HEADERS = ['构建', '线程', 'Hash', '初始化', '深度', '节点数', 'NPS', '结果'];
@@ -172,5 +188,7 @@ function render(rows: Row[], manifest: Manifest): void {
 }
 
 void boot().catch(error => {
-  setStatus(error instanceof Error ? error.message : String(error), true);
+  const message = error instanceof Error ? error.message : String(error);
+  setStatus(message, true);
+  (window as unknown as { __bench?: unknown }).__bench = { done: true, error: message };
 });

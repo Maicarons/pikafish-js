@@ -2,6 +2,7 @@ import {
   Game,
   PIECE_NAMES,
   applyMove,
+  inBounds,
   isLegalMove,
   parseUcci,
   toChineseNotation,
@@ -15,8 +16,11 @@ import {
   buildLabel,
   createEngine,
   type AnalysisInfo,
+  type BuildSelection,
   type PikafishEngine,
+  type ReadyInfo,
 } from 'pikafish-js';
+import { registerIsolationWorker } from './isolation.js';
 // The engine host must be a *classic* worker: the Emscripten glue is loaded
 // with `importScripts`, which module workers do not provide. A classic worker
 // entry cannot be bundled by Vite's dev server, so we load the prebuilt,
@@ -41,6 +45,26 @@ const LEVELS: Level[] = [
   { name: '大师 · 12 层', depth: 12, movetime: 2600 },
   { name: '特级大师 · 16 层', depth: 16, movetime: 5000 },
 ];
+
+// Three WASM builds are shipped (see engine.json): the multi-threaded one is
+// fastest but needs the most memory, the others are for weaker devices. `auto`
+// picks by SIMD support and device memory.
+const BUILD_CHOICES: Array<{ value: BuildSelection; label: string }> = [
+  { value: 'auto', label: '自动（推荐）' },
+  { value: 'threads-simd', label: buildLabel('threads-simd') },
+  { value: 'single-simd', label: buildLabel('single-simd') },
+  { value: 'single-nosimd', label: buildLabel('single-nosimd') },
+];
+
+// `?build=single-simd` wins over the stored preference so a link (or a test) can
+// pin the build without touching localStorage.
+function resolveBuildChoice(): BuildSelection {
+  const requested = new URLSearchParams(location.search).get('build');
+  const stored = requested ?? loadPreference<string>('build', 'auto');
+  return BUILD_CHOICES.some(choice => choice.value === stored)
+    ? (stored as BuildSelection)
+    : 'auto';
+}
 
 interface BuildManifest {
   js: string;
@@ -99,8 +123,18 @@ app.innerHTML = `
         </div>
 
         <div class="board-frame">
-          <div id="board" class="board" role="grid" aria-label="中国象棋棋盘"></div>
+          <div
+            id="board"
+            class="board"
+            role="group"
+            aria-label="中国象棋棋盘"
+            aria-describedby="boardHelp"
+          ></div>
         </div>
+
+        <p id="boardHelp" class="visually-hidden">
+          方向键在棋盘上移动焦点，回车或空格选择棋子与落子，Esc 取消选择。快捷键：U 悔棋、N 新开一局、H 提示、F 翻转。
+        </p>
 
         <div class="board-footer">
           <div class="status-line">
@@ -140,6 +174,11 @@ app.innerHTML = `
             <h2>引擎</h2>
             <span id="engineBadge" class="badge">加载中</span>
           </div>
+          <label class="field">
+            <span>构建</span>
+            <select id="buildSelect"></select>
+          </label>
+          <p class="muted tiny">切换构建会重新加载页面。</p>
           <dl class="stats">
             <div><dt>构建</dt><dd id="statBuild">—</dd></div>
             <div><dt>线程</dt><dd id="statThreads">—</dd></div>
@@ -153,7 +192,7 @@ app.innerHTML = `
           <div class="panel-heading">
             <h2>分析</h2>
             <label class="switch" title="开启实时分析">
-              <input id="analysisToggle" type="checkbox" />
+              <input id="analysisToggle" type="checkbox" aria-label="实时分析" />
               <span class="switch-track"><span class="switch-thumb"></span></span>
             </label>
           </div>
@@ -190,6 +229,8 @@ app.innerHTML = `
     </footer>
 
     <div id="toast" class="toast" hidden role="status"></div>
+
+    <p id="srStatus" class="visually-hidden" aria-live="polite"></p>
 
     <div id="loadingOverlay" class="loading-overlay">
       <div class="loading-card">
@@ -237,12 +278,20 @@ const loadingOverlay = must<HTMLDivElement>('#loadingOverlay');
 const loadingText = must<HTMLParagraphElement>('#loadingText');
 const loadingDetail = must<HTMLElement>('#loadingDetail');
 const progressBar = must<HTMLSpanElement>('#progressBar');
+const buildSelect = must<HTMLSelectElement>('#buildSelect');
+const srStatus = must<HTMLElement>('#srStatus');
 
 let game = new Game();
 let playerColor: Color = loadPreference<Color>('side', 'w') === 'b' ? 'b' : 'w';
 let difficulty = clamp(loadPreference<number>('difficulty', 4), 1, LEVELS.length);
+let buildChoice: BuildSelection = resolveBuildChoice();
 let flipped = playerColor === 'b';
 let selected: Square | null = null;
+// Roving tabindex: exactly one square is tabbable, and the arrow keys move it so
+// the whole board is reachable without 90 tab stops.
+let focusSquare: Square = { file: 4, rank: playerColor === 'w' ? 0 : 9 };
+let boardFocused = false;
+let lastAnnouncement = '';
 let legalTargets: Move[] = [];
 let hintMove: Move | null = null;
 let engine: PikafishEngine | null = null;
@@ -262,6 +311,10 @@ difficultySelect.innerHTML = LEVELS.map(
   (level, index) => `<option value="${index + 1}">${level.name}</option>`,
 ).join('');
 difficultySelect.value = String(difficulty);
+buildSelect.innerHTML = BUILD_CHOICES.map(
+  choice => `<option value="${choice.value}">${choice.label}</option>`,
+).join('');
+buildSelect.value = buildChoice;
 analysisToggle.checked = analysisOn;
 
 boardEl.addEventListener('click', event => {
@@ -271,6 +324,83 @@ boardEl.addEventListener('click', event => {
     file: Number(target.dataset.file),
     rank: Number(target.dataset.rank),
   });
+});
+
+// The squares are buttons, so Enter and Space already fire `click`; this only
+// has to move the roving tabindex. Arrow directions follow what the user sees,
+// which is why the step flips with the board.
+boardEl.addEventListener('keydown', event => {
+  const target = (event.target as Element | null)?.closest<HTMLButtonElement>('.square');
+  if (!target) return;
+  const file = Number(target.dataset.file);
+  const rank = Number(target.dataset.rank);
+  const step = flipped ? -1 : 1;
+  let next: Square | null = null;
+
+  if (event.key === 'ArrowRight') next = { file: file + step, rank };
+  else if (event.key === 'ArrowLeft') next = { file: file - step, rank };
+  else if (event.key === 'ArrowUp') next = { file, rank: rank + step };
+  else if (event.key === 'ArrowDown') next = { file, rank: rank - step };
+  else if (event.key === 'Escape') {
+    selected = null;
+    legalTargets = [];
+    renderBoard();
+    announce('已取消选择');
+    return;
+  }
+
+  if (!next || !inBounds(next) || next.file > 8) return;
+  event.preventDefault();
+  focusSquare = next;
+  focusSquareElement(next);
+});
+
+boardEl.addEventListener('focusin', () => {
+  boardFocused = true;
+});
+boardEl.addEventListener('focusout', () => {
+  boardFocused = false;
+});
+
+document.addEventListener('keydown', event => {
+  if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+  const target = event.target as HTMLElement | null;
+  if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return;
+  switch (event.key.toLowerCase()) {
+    case 'u':
+      undoButton.click();
+      break;
+    case 'n':
+      newGameButton.click();
+      break;
+    case 'h':
+      hintButton.click();
+      break;
+    case 'f':
+      flipButton.click();
+      break;
+    case 'escape':
+      // Escape must also work when focus is not on a square (e.g. on a button).
+      if (selected) {
+        selected = null;
+        legalTargets = [];
+        renderBoard();
+        announce('已取消选择');
+      }
+      break;
+    default:
+  }
+});
+
+buildSelect.addEventListener('change', () => {
+  const value = buildSelect.value as BuildSelection;
+  savePreference('build', value);
+  const url = new URL(location.href);
+  if (value === 'auto') url.searchParams.delete('build');
+  else url.searchParams.set('build', value);
+  // The build is decided while the engine worker boots, so switching means a
+  // fresh page (the cached NNUE weights are reused).
+  location.assign(url.href);
 });
 
 difficultySelect.addEventListener('change', () => {
@@ -334,6 +464,7 @@ analysisToggle.addEventListener('change', () => {
 retryButton.addEventListener('click', () => location.reload());
 
 render();
+registerIsolationWorker();
 void bootEngine();
 
 async function bootEngine(): Promise<void> {
@@ -350,6 +481,7 @@ async function bootEngine(): Promise<void> {
     setLoading('正在初始化 WebAssembly…', `${manifest.builds ? '三个构建可用' : ''}`);
     engine = await createEngine({
       builds: manifest.builds,
+      build: buildChoice,
       netUrl,
       netSha256: manifest.net.sha256,
       workerFactory: () =>
@@ -369,6 +501,7 @@ async function bootEngine(): Promise<void> {
 
     loadingOverlay.hidden = true;
     render();
+    announce(`引擎就绪：${buildLabel(engine.build)}`);
     if (playerColor === 'b') void maybeEngineMove(260);
     if (analysisOn) void startAnalysis();
   } catch (error) {
@@ -418,6 +551,7 @@ function commitMove(move: Move): void {
   analysisRows.clear();
   latestInfo = null;
   render();
+  announceMove('落子 ');
   if (!game.status().over && game.turn !== playerColor) void maybeEngineMove(180);
 }
 
@@ -444,7 +578,7 @@ async function engineMove(): Promise<void> {
       const moves = currentGame.legalMoves();
       const move = moves[Math.floor(Math.random() * moves.length)];
       if (move) currentGame.move(move);
-      finishEngineMove(currentGame);
+      finishEngineMove(currentGame, Boolean(move));
       return;
     }
 
@@ -469,7 +603,7 @@ async function engineMove(): Promise<void> {
     const result = await handle.result;
     if (controller.signal.aborted) return;
     if (result.bestmove === '(none)') {
-      finishEngineMove(currentGame);
+      finishEngineMove(currentGame, false);
       return;
     }
     const move = parseUcci(result.bestmove);
@@ -477,7 +611,7 @@ async function engineMove(): Promise<void> {
       throw new Error(`引擎返回了非法着法：${result.bestmove}`);
     }
     currentGame.move(move);
-    finishEngineMove(currentGame);
+    finishEngineMove(currentGame, true);
   } catch (error) {
     if (!isAbortError(error)) showError(error instanceof Error ? error.message : String(error));
   } finally {
@@ -488,12 +622,13 @@ async function engineMove(): Promise<void> {
   }
 }
 
-function finishEngineMove(currentGame: Game): void {
+function finishEngineMove(currentGame: Game, moved: boolean): void {
   if (game !== currentGame) return;
   thinking = false;
   latestInfo = null;
   analysisRows.clear();
   render();
+  if (moved) announceMove('引擎走 ');
 }
 
 async function startAnalysis(): Promise<void> {
@@ -566,6 +701,7 @@ async function showHint(): Promise<void> {
     if (move) {
       hintMove = move;
       renderBoard();
+      announce(`提示：${toChineseNotation(game.position, move)}`);
       if (hintTimer) clearTimeout(hintTimer);
       hintTimer = setTimeout(() => {
         hintMove = null;
@@ -591,6 +727,8 @@ function startNewGame(): void {
   analysisRows.clear();
   latestInfo = null;
   if (hintTimer) clearTimeout(hintTimer);
+  focusSquare = { file: 4, rank: playerColor === 'w' ? 0 : 9 };
+  announce('已开始新的一局');
   if (game.turn !== playerColor) {
     // Engine plays Red before the player gets the first move.
     void maybeEngineMove(300);
@@ -620,6 +758,7 @@ function renderBoard(): void {
       const left = ((MARGIN + displayFile * CELL) / BOARD_WIDTH) * 100;
       const top = ((MARGIN + displayRank * CELL) / BOARD_HEIGHT) * 100;
       const isSelected = selected?.file === file && selected.rank === rank;
+      const isFocus = focusSquare.file === file && focusSquare.rank === rank;
       const isTarget = legalTargets.some(
         move => move.to.file === file && move.to.rank === rank,
       );
@@ -658,8 +797,9 @@ function renderBoard(): void {
           class="${classes}"
           data-file="${file}"
           data-rank="${rank}"
+          tabindex="${isFocus ? '0' : '-1'}"
           style="left:${left.toFixed(4)}%;top:${top.toFixed(4)}%"
-          aria-label="${label}${legalLabel}"
+          aria-label="${label}${isSelected ? '，已选中' : ''}${legalLabel}"
         >
           ${piece ? `<span class="piece ${piece.color === 'w' ? 'red' : 'black'}">${pieceGlyph(piece)}</span>` : ''}
           ${isTarget && !piece ? '<span class="move-dot"></span>' : ''}
@@ -676,6 +816,26 @@ function renderBoard(): void {
     </svg>
     <div class="squares">${squares.join('')}</div>
   `;
+
+  // Re-rendering replaces every square, so a keyboard user would lose their
+  // place after each move; put the focus back where it was.
+  if (boardFocused) {
+    boardEl
+      .querySelector<HTMLButtonElement>('.square[tabindex="0"]')
+      ?.focus({ preventScroll: true });
+  }
+}
+
+function focusSquareElement(square: Square): void {
+  boardEl
+    .querySelector<HTMLButtonElement>('.square[tabindex="0"]')
+    ?.setAttribute('tabindex', '-1');
+  const target = boardEl.querySelector<HTMLButtonElement>(
+    `.square[data-file="${square.file}"][data-rank="${square.rank}"]`,
+  );
+  if (!target) return;
+  target.setAttribute('tabindex', '0');
+  target.focus({ preventScroll: true });
 }
 
 function renderBoardLines(): string {
@@ -803,7 +963,9 @@ function renderStatus(info?: AnalysisInfo): void {
 
 function renderControls(): void {
   for (const button of sideToggle.querySelectorAll<HTMLButtonElement>('[data-side]')) {
-    button.classList.toggle('active', button.dataset.side === playerColor);
+    const active = button.dataset.side === playerColor;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
   }
   undoButton.disabled = thinking || game.history.length === 0;
   hintButton.disabled = !engineReady || thinking || game.status().over;
@@ -985,6 +1147,26 @@ function showError(message: string): void {
   errorBanner.hidden = false;
   loadingOverlay.hidden = true;
   toast(message, true);
+  announce(`错误：${message}`);
+}
+
+// Screen readers get one polite message per meaningful event. The visible status
+// line is not a live region on purpose: it changes on every engine `info` line.
+function announce(message: string): void {
+  if (message === lastAnnouncement) return;
+  lastAnnouncement = message;
+  srStatus.textContent = message;
+}
+
+function announceMove(prefix: string): void {
+  const status = game.status();
+  const notation = game.lastMove?.notation ?? '';
+  const suffix = status.over
+    ? `，${resultSentence(status.result, status.reason)}`
+    : status.inCheck
+      ? '，将军'
+      : '';
+  announce(`${prefix}${notation}${suffix}`);
 }
 
 function toast(message: string, error = false): void {
@@ -1010,17 +1192,18 @@ function sleep(ms: number): Promise<void> {
 
 async function ensureIsolation(): Promise<void> {
   if (crossOriginIsolated) return;
-  if ('serviceWorker' in navigator) {
+  const container = navigator.serviceWorker;
+  if (container) {
     // coi-serviceworker installs on the first visit and reloads once it takes
     // control; give it a moment before failing.
     await new Promise<void>(resolve => {
       const finish = () => {
         clearTimeout(timer);
-        navigator.serviceWorker.removeEventListener('controllerchange', finish);
+        container.removeEventListener('controllerchange', finish);
         resolve();
       };
       const timer = setTimeout(finish, 4000);
-      navigator.serviceWorker.addEventListener('controllerchange', finish);
+      container.addEventListener('controllerchange', finish);
     });
   }
   if (!crossOriginIsolated) {
@@ -1074,5 +1257,56 @@ function escapeHtml(value: string): string {
     }
   });
 }
+
+// Read-only state hook for the end-to-end tests and the stress script. It is
+// deliberately observation-only: tests drive the UI the way a user does, this
+// just saves them from scraping the DOM to assert what happened.
+Object.defineProperty(window, '__pikafish', {
+  configurable: true,
+  value: Object.freeze({
+    get ready(): boolean {
+      return engineReady;
+    },
+    get build(): string | null {
+      return engine?.build ?? null;
+    },
+    get buildChoice(): BuildSelection {
+      return buildChoice;
+    },
+    get fen(): string {
+      return game.fen;
+    },
+    get turn(): Color {
+      return game.turn;
+    },
+    get thinking(): boolean {
+      return thinking;
+    },
+    get playerColor(): Color {
+      return playerColor;
+    },
+    get difficulty(): number {
+      return difficulty;
+    },
+    get history(): string[] {
+      return game.history.map(record => record.ucci);
+    },
+    get selected(): Square | null {
+      return selected;
+    },
+    get hint(): Move | null {
+      return hintMove;
+    },
+    get status(): ReturnType<Game['status']> {
+      return game.status();
+    },
+    get engineInfo(): ReadyInfo | null {
+      return engine?.info ?? null;
+    },
+    get boardFocused(): boolean {
+      return boardFocused;
+    },
+  }),
+});
 
 export {};
