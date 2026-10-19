@@ -77,10 +77,8 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
-        with:
-          # A brand new repository has Pages turned off; this creates the site
-          # instead of failing the first deploy.
-          enablement: true
+        # Pages has to be enabled once by a repository admin (Settings → Pages →
+        # Source: GitHub Actions); the token cannot create the site itself.
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

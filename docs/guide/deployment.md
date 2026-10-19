@@ -74,6 +74,14 @@ Vercel 上的推荐设置：
 
 ## 3. GitHub Pages（文档 + 镜像）
 
+线上实例：演示 <https://maicarons.github.io/pikafish-js/>，文档
+<https://maicarons.github.io/pikafish-js/docs/>。这是子路径部署，可作为 `VITE_BASE` /
+`DOCS_BASE` 的参照。
+
+新仓库要先由管理员启用一次 Pages（Settings → Pages → Source: GitHub Actions）。
+`configure-pages` 的 `enablement: true` 帮不上忙：创建站点的接口需要管理员权限，
+`GITHUB_TOKEN` 只会拿到 `Resource not accessible by integration`。
+
 Pages 不能自定义响应头，所以用 `coi-serviceworker` 在浏览器里补：
 
 ```text
