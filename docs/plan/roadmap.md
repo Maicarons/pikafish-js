@@ -319,6 +319,20 @@ jobs:
 - 资源异常：缓存配额满、Cache Storage 被禁用。
 - 生命周期：`dispose` 后调用 API、重复 `dispose`、页面隐藏/恢复。
 
+### 5.2 v0.1 实际覆盖
+
+| 层级 | 实际做法 | 数量 |
+| --- | --- | --- |
+| 单元 | Vitest，`packages/rules` 与 `packages/engine` | 44 项（规则 25 + 引擎 19） |
+| 集成 | 真实 Worker，在 e2e 中通过演示站覆盖（未引入 happy-dom） | 随 e2e |
+| 端到端 | Chromium 全量；Firefox、WebKit 各跑 `@smoke` | 20 + 5 + 5 |
+| 防御性 | 非法 FEN/着法、空着、重复 `go`、NNUE 404、缓存损坏、`?build=` 未知值、构建资源缺失 | 见上节清单 |
+| 性能 | `bench.html` + `scripts/bench.mjs`，三构建 × 三浏览器 | 见[基准数据](/guide/benchmarks) |
+| 压测 | `@stress` 用例，默认 `grepInvert` 排除，手动执行 | 未纳入 CI |
+| 兼容 | 桌面 Chromium/Firefox/WebKit；**无 iOS/Android 真机** | — |
+
+仍然欠缺：官方 39 循环棋例（与长捉分类一同留到 v0.2）、真机内存曲线、CI runner 上的基准趋势数据。
+
 ## 6. 发布流程
 
 ```text
@@ -332,6 +346,11 @@ jobs:
 8. 部署演示站（Vercel + Pages）→ 公告
 9. 观察 72 小时 issue / 崩溃报告
 ```
+
+> **自动化程度（v0.1）**：第 2、4、5、6、7 步已写入 `.github/workflows/release.yml`——单测、体积预算、
+> 打包与 `SHA256SUMS`、创建/更新 Release（说明取自 `docs/releases/<tag>.md`）、`npm publish
+> --provenance`（需要 `NPM_TOKEN`，未配置则跳过并留 notice）。第 1、3 步仍是人工：冻结代码、
+> 跑 `npx changeset version`。第 8、9 步依赖真实域名与时间，尚未执行。
 
 ### 6.1 发布清单
 
