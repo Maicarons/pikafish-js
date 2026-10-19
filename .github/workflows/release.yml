@@ -70,9 +70,7 @@ jobs:
 
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" dist/release/* --clobber
-            if [ -f "$notes" ]; then
-              gh release edit "$tag" --notes-file "$notes"
-            fi
+            gh release edit "$tag" "${notes_args[@]}"
           else
             gh release create "$tag" dist/release/* \
               --title "pikafish-js $tag" \
