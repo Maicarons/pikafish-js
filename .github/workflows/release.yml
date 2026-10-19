@@ -60,7 +60,12 @@ jobs:
           notes="docs/releases/${tag}.md"
           notes_args=(--notes "Prebuilt Pikafish WebAssembly variants and SHA256SUMS.")
           if [ -f "$notes" ]; then
-            notes_args=(--notes-file "$notes")
+            # The release notes live in the docs tree, where links are relative
+            # to a VitePress page. Point them at the repository so they also
+            # work in the Release view.
+            sed -E "s#]\(\.\./#](https://github.com/${GITHUB_REPOSITORY}/blob/main/docs/#g" \
+              "$notes" > release-notes.md
+            notes_args=(--notes-file release-notes.md)
           fi
 
           if gh release view "$tag" >/dev/null 2>&1; then
