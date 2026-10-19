@@ -7,11 +7,11 @@ hero:
   tagline: 基于 WebAssembly 的 Pikafish 前端包 · 纯前端人机对弈 · 本地局面分析 · 可离线运行
   actions:
     - theme: brand
+      text: 快速开始
+      link: /guide/getting-started
+    - theme: alt
       text: 阅读完整方案
       link: /plan/overview
-    - theme: alt
-      text: 技术调研
-      link: /plan/research
 
 features:
   - title: 真正的 Pikafish
@@ -23,7 +23,7 @@ features:
   - title: 面向开发者
     details: 提供 Promise 化的 UCI 封装、流式分析、局面缓存与 TypeScript 类型，可嵌入任意 Web 应用。
   - title: 规则完整
-    details: 覆盖将死、困毙、三次重复、自然限着与长将长捉裁决，遵循皮卡鱼《象棋程序竞赛规则》。
+    details: 覆盖将死、困毙（判负）、三次重复、自然限着与子力不足；长将判负，完整的长捉分类留待 v0.2。
   - title: 开放
     details: 项目代码采用 AGPL-3.0-or-later；上游 Pikafish 为 GPL-3.0；NNUE 权重按自身声明使用，核心包不携带权重。
 ---
@@ -36,9 +36,21 @@ features:
 
 <div class="tip custom-block" style="padding-top: 8px">
 
-**阅读顺序建议**：先看 [方案总览](/plan/overview) 了解目标与关键决策，再看 [技术调研](/plan/research) 核对事实依据，最后阅读 [系统架构](/plan/architecture) 与 [路线图](/plan/roadmap)。
+**想先跑起来**：直接看 [快速开始](/guide/getting-started)，30 分钟就能在自己的页面里下第一步棋。
+**想先了解取舍**：从 [方案总览](/plan/overview) 开始，再看 [技术调研](/plan/research) 与
+[系统架构](/plan/architecture)。
 
 </div>
+
+## 使用指南
+
+| 文档 | 内容 |
+| --- | --- |
+| [快速开始](/guide/getting-started) | 准备构建产物、配置跨源隔离、创建引擎、落子，附常见错误对照表 |
+| [API 参考](/guide/api) | 两个包的完整接口、事件、错误码与示例 |
+| [部署指南](/guide/deployment) | Vercel、GitHub Pages、自托管的响应头、缓存与 CSP |
+| [常见问题](/guide/faq) | 为什么必须隔离、权重为什么 48 MB、手机与 iOS 怎么办 |
+| [基准数据](/guide/benchmarks) | 三套构建在 Chromium、Firefox、WebKit 上的实测与复现方法 |
 
 ## 关键数字
 

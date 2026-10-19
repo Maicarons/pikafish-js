@@ -110,7 +110,15 @@ wasm 的环境，因此这些数字由页面而非 Node 脚本产出；`docs/` �
 
 ## 文档
 
-完整的项目方案位于 `docs/`：
+**使用指南**（接入自己的项目从这里开始）：
+
+- [快速开始](docs/guide/getting-started.md)：30 分钟跑通引擎
+- [API 参考](docs/guide/api.md)：`pikafish-js` 与 `@pikafish-js/rules`
+- [部署指南](docs/guide/deployment.md)：COOP/COEP、Vercel、GitHub Pages、CSP
+- [常见问题](docs/guide/faq.md)：为什么必须隔离、权重为什么这么大
+- [基准数据](docs/guide/benchmarks.md)：三套构建在三种浏览器上的实测
+
+**项目方案**位于 `docs/plan/`：
 
 - [方案总览](docs/plan/overview.md)
 - [选型记录](docs/plan/decisions.md)
@@ -119,3 +127,9 @@ wasm 的环境，因此这些数字由页面而非 Node 脚本产出；`docs/` �
 - [系统架构](docs/plan/architecture.md)
 - [实施路线图](docs/plan/roadmap.md)
 - [风险与对策](docs/plan/risks.md)
+
+**交付记录**：
+
+- [复盘：v0.1.0](docs/retrospective.md)
+- [发布说明：v0.1.0](docs/releases/v0.1.0.md)
+- [贡献指南](CONTRIBUTING.md)
