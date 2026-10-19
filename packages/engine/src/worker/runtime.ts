@@ -128,10 +128,6 @@ export function startEngineWorker(scope: DedicatedWorkerGlobalScope): void {
     if (!response.ok) {
       throw Object.assign(new Error(`Network fetch failed: HTTP ${response.status}`), { code: 'NET_LOAD_FAILED' });
     }
-    if (key) {
-      const cache = await caches.open(CACHE_NAME);
-      void cache.put(key, response.clone()).catch(() => undefined);
-    }
 
     const total = Number(response.headers.get('content-length') ?? 0) || 0;
     let bytes: Uint8Array;
@@ -159,6 +155,15 @@ export function startEngineWorker(scope: DedicatedWorkerGlobalScope): void {
     }
 
     await verifyHash(bytes, source.sha256, verify);
+    // Only verified weights are persisted, so a corrupted download can never
+    // poison the cache. Building the response from `bytes` also avoids the
+    // extra ~50 MB the stream tee created by `response.clone()`.
+    if (key) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache
+        .put(key, new Response(toArrayBuffer(bytes), { headers: { 'Content-Type': 'application/octet-stream' } }))
+        .catch(() => undefined);
+    }
     return { bytes, cached: false };
   }
 }
