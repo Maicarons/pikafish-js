@@ -32,9 +32,9 @@ describe('chooseBuild', () => {
   });
 
   it('requires cross-origin isolation for every build', () => {
-    expect(() => chooseBuild(capabilities({ crossOriginIsolated: false }), { builds: allBuilds })).toThrow(
-      PikafishError,
-    );
+    expect(() =>
+      chooseBuild(capabilities({ crossOriginIsolated: false }), { builds: allBuilds }),
+    ).toThrow(PikafishError);
     expect(() =>
       chooseBuild(capabilities({ sharedArrayBuffer: false }), { builds: allBuilds }),
     ).toThrow(PikafishError);
@@ -45,13 +45,15 @@ describe('chooseBuild', () => {
   });
 
   it('honours an explicit build when available', () => {
-    expect(chooseBuild(capabilities(), { build: 'single-nosimd', builds: allBuilds })).toBe('single-nosimd');
+    expect(chooseBuild(capabilities(), { build: 'single-nosimd', builds: allBuilds })).toBe(
+      'single-nosimd',
+    );
   });
 
   it('falls back when the requested build is missing', () => {
-    expect(chooseBuild(capabilities({ simd: false }), { build: 'threads-simd', builds: allBuilds })).toBe(
-      'single-nosimd',
-    );
+    expect(
+      chooseBuild(capabilities({ simd: false }), { build: 'threads-simd', builds: allBuilds }),
+    ).toBe('single-nosimd');
     expect(
       chooseBuild(capabilities(), {
         build: 'threads-simd',

@@ -61,7 +61,7 @@ const BUILD_CHOICES: Array<{ value: BuildSelection; label: string }> = [
 function resolveBuildChoice(): BuildSelection {
   const requested = new URLSearchParams(location.search).get('build');
   const stored = requested ?? loadPreference<string>('build', 'auto');
-  return BUILD_CHOICES.some(choice => choice.value === stored)
+  return BUILD_CHOICES.some((choice) => choice.value === stored)
     ? (stored as BuildSelection)
     : 'auto';
 }
@@ -284,7 +284,7 @@ const srStatus = must<HTMLElement>('#srStatus');
 let game = new Game();
 let playerColor: Color = loadPreference<Color>('side', 'w') === 'b' ? 'b' : 'w';
 let difficulty = clamp(loadPreference<number>('difficulty', 4), 1, LEVELS.length);
-let buildChoice: BuildSelection = resolveBuildChoice();
+const buildChoice: BuildSelection = resolveBuildChoice();
 let flipped = playerColor === 'b';
 let selected: Square | null = null;
 // Roving tabindex: exactly one square is tabbable, and the arrow keys move it so
@@ -298,7 +298,7 @@ let engine: PikafishEngine | null = null;
 let engineReady = false;
 let thinking = false;
 let analysisOn = false;
-let analysisRows = new Map<number, AnalysisInfo>();
+const analysisRows = new Map<number, AnalysisInfo>();
 let latestInfo: AnalysisInfo | null = null;
 let activeAbort: AbortController | null = null;
 let analysisAbort: AbortController | null = null;
@@ -312,12 +312,12 @@ difficultySelect.innerHTML = LEVELS.map(
 ).join('');
 difficultySelect.value = String(difficulty);
 buildSelect.innerHTML = BUILD_CHOICES.map(
-  choice => `<option value="${choice.value}">${choice.label}</option>`,
+  (choice) => `<option value="${choice.value}">${choice.label}</option>`,
 ).join('');
 buildSelect.value = buildChoice;
 analysisToggle.checked = analysisOn;
 
-boardEl.addEventListener('click', event => {
+boardEl.addEventListener('click', (event) => {
   const target = (event.target as Element | null)?.closest<HTMLButtonElement>('.square');
   if (!target) return;
   onSquare({
@@ -329,7 +329,7 @@ boardEl.addEventListener('click', event => {
 // The squares are buttons, so Enter and Space already fire `click`; this only
 // has to move the roving tabindex. Arrow directions follow what the user sees,
 // which is why the step flips with the board.
-boardEl.addEventListener('keydown', event => {
+boardEl.addEventListener('keydown', (event) => {
   const target = (event.target as Element | null)?.closest<HTMLButtonElement>('.square');
   if (!target) return;
   const file = Number(target.dataset.file);
@@ -362,7 +362,7 @@ boardEl.addEventListener('focusout', () => {
   boardFocused = false;
 });
 
-document.addEventListener('keydown', event => {
+document.addEventListener('keydown', (event) => {
   if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
   const target = event.target as HTMLElement | null;
   if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return;
@@ -409,7 +409,7 @@ difficultySelect.addEventListener('change', () => {
   renderStatus();
 });
 
-sideToggle.addEventListener('click', event => {
+sideToggle.addEventListener('click', (event) => {
   const target = (event.target as Element | null)?.closest<HTMLButtonElement>('[data-side]');
   if (!target) return;
   const side = target.dataset.side;
@@ -489,13 +489,13 @@ async function bootEngine(): Promise<void> {
           type: 'classic',
           name: 'pikafish-engine',
         }),
-      onNetProgress: progress => updateNetProgress(progress),
+      onNetProgress: (progress) => updateNetProgress(progress),
     });
 
     engineReady = true;
-    engine.on('degraded', event => toast(event.reason));
-    engine.on('error', error => showError(error.message));
-    engine.on('stderr', line => {
+    engine.on('degraded', (event) => toast(event.reason));
+    engine.on('error', (error) => showError(error.message));
+    engine.on('stderr', (line) => {
       if (line.includes('ERROR') || line.includes('CRITICAL')) showError(line);
     });
 
@@ -519,8 +519,7 @@ function onSquare(square: Square): void {
 
   if (selected) {
     const move = legalTargets.find(
-      candidate =>
-        candidate.to.file === square.file && candidate.to.rank === square.rank,
+      (candidate) => candidate.to.file === square.file && candidate.to.rank === square.rank,
     );
     if (move) {
       commitMove(move);
@@ -556,7 +555,8 @@ function commitMove(move: Move): void {
 }
 
 async function maybeEngineMove(delayMs: number): Promise<void> {
-  if (!engine || !engineReady || thinking || game.status().over || game.turn === playerColor) return;
+  if (!engine || !engineReady || thinking || game.status().over || game.turn === playerColor)
+    return;
   await sleep(delayMs);
   if (!engine || thinking || game.status().over || game.turn === playerColor) return;
   await engineMove();
@@ -759,20 +759,13 @@ function renderBoard(): void {
       const top = ((MARGIN + displayRank * CELL) / BOARD_HEIGHT) * 100;
       const isSelected = selected?.file === file && selected.rank === rank;
       const isFocus = focusSquare.file === file && focusSquare.rank === rank;
-      const isTarget = legalTargets.some(
-        move => move.to.file === file && move.to.rank === rank,
-      );
-      const isLastFrom =
-        last?.move.from.file === file && last?.move.from.rank === rank;
+      const isTarget = legalTargets.some((move) => move.to.file === file && move.to.rank === rank);
+      const isLastFrom = last?.move.from.file === file && last?.move.from.rank === rank;
       const isLastTo = last?.move.to.file === file && last?.move.to.rank === rank;
-      const isHintFrom =
-        hintMove?.from.file === file && hintMove?.from.rank === rank;
+      const isHintFrom = hintMove?.from.file === file && hintMove?.from.rank === rank;
       const isHintTo = hintMove?.to.file === file && hintMove?.to.rank === rank;
       const isCheck =
-        !!piece &&
-        piece.type === 'k' &&
-        piece.color === checkColor &&
-        game.isCheck(piece.color);
+        !!piece && piece.type === 'k' && piece.color === checkColor && game.isCheck(piece.color);
 
       const classes = [
         'square',
@@ -827,9 +820,7 @@ function renderBoard(): void {
 }
 
 function focusSquareElement(square: Square): void {
-  boardEl
-    .querySelector<HTMLButtonElement>('.square[tabindex="0"]')
-    ?.setAttribute('tabindex', '-1');
+  boardEl.querySelector<HTMLButtonElement>('.square[tabindex="0"]')?.setAttribute('tabindex', '-1');
   const target = boardEl.querySelector<HTMLButtonElement>(
     `.square[data-file="${square.file}"][data-rank="${square.rank}"]`,
   );
@@ -931,11 +922,7 @@ function renderStatus(info?: AnalysisInfo): void {
 
   redChip.classList.toggle('active', !status.over && game.turn === 'w');
   blackChip.classList.toggle('active', !status.over && game.turn === 'b');
-  turnLabel.textContent = status.over
-    ? '对局结束'
-    : thinking
-      ? '引擎思考中'
-      : `${turnName}行棋`;
+  turnLabel.textContent = status.over ? '对局结束' : thinking ? '引擎思考中' : `${turnName}行棋`;
 
   statusDot.className = 'status-dot';
   if (thinking) {
@@ -1174,20 +1161,26 @@ function toast(message: string, error = false): void {
   toastEl.classList.toggle('error', error);
   toastEl.hidden = false;
   if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    toastEl.hidden = true;
-  }, error ? 8000 : 4000);
+  toastTimer = setTimeout(
+    () => {
+      toastEl.hidden = true;
+    },
+    error ? 8000 : 4000,
+  );
 }
 
 function isAbortError(error: unknown): boolean {
   return (
     (error instanceof Error && error.name === 'AbortError') ||
-    (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'SEARCH_ABORTED')
+    (typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: string }).code === 'SEARCH_ABORTED')
   );
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function ensureIsolation(): Promise<void> {
@@ -1196,7 +1189,7 @@ async function ensureIsolation(): Promise<void> {
   if (container) {
     // coi-serviceworker installs on the first visit and reloads once it takes
     // control; give it a moment before failing.
-    await new Promise<void>(resolve => {
+    await new Promise<void>((resolve) => {
       const finish = () => {
         clearTimeout(timer);
         container.removeEventListener('controllerchange', finish);
@@ -1242,7 +1235,7 @@ function must<T extends Element>(selector: string): T {
 }
 
 function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, char => {
+  return value.replace(/[&<>"']/g, (char) => {
     switch (char) {
       case '&':
         return '&amp;';
@@ -1289,7 +1282,7 @@ Object.defineProperty(window, '__pikafish', {
       return difficulty;
     },
     get history(): string[] {
-      return game.history.map(record => record.ucci);
+      return game.history.map((record) => record.ucci);
     },
     get selected(): Square | null {
       return selected;

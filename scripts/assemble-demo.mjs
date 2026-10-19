@@ -20,7 +20,9 @@ for (const build of ['threads-simd', 'single-simd', 'single-nosimd']) {
   await mkdir(targetDir, { recursive: true });
   await replaceFile(join(sourceDir, 'pikafish.js'), join(targetDir, 'pikafish.js'));
   await replaceFile(join(sourceDir, 'pikafish.wasm'), join(targetDir, 'pikafish.wasm'));
-  await replaceFile(join(sourceDir, 'COPYING.txt'), join(targetDir, 'COPYING.txt')).catch(() => undefined);
+  await replaceFile(join(sourceDir, 'COPYING.txt'), join(targetDir, 'COPYING.txt')).catch(
+    () => undefined,
+  );
   const js = await stat(join(targetDir, 'pikafish.js'));
   const wasm = await stat(join(targetDir, 'pikafish.wasm'));
   builds[build] = {
@@ -45,7 +47,9 @@ const manifest = {
   },
   builds,
 };
-await atomicWrite(join(publicDir, 'engine.json'), path => writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`));
+await atomicWrite(join(publicDir, 'engine.json'), (path) =>
+  writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`),
+);
 console.log(`Demo engine assets assembled in ${publicDir}`);
 console.log(`NNUE: ${net.size} bytes ${netHash}`);
 
@@ -55,7 +59,7 @@ console.log(`NNUE: ${net.size} bytes ${netHash}`);
 // makes the rename fail; retry briefly, then fail with advice instead of a
 // confusing EBUSY stack trace.
 async function replaceFile(source, target) {
-  await atomicWrite(target, path => copyFile(source, path));
+  await atomicWrite(target, (path) => copyFile(source, path));
 }
 
 async function atomicWrite(target, write) {
@@ -75,7 +79,7 @@ async function atomicWrite(target, write) {
           { cause: error },
         );
       }
-      await new Promise(resolve => setTimeout(resolve, attempt * 100));
+      await new Promise((resolve) => setTimeout(resolve, attempt * 100));
     }
   }
 }

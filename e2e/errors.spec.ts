@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { waitForReady } from './support';
 
 test('NNUE 下载失败时给出可恢复的错误', async ({ page }) => {
-  await page.route('**/pikafish.nnue', route => route.abort());
+  await page.route('**/pikafish.nnue', (route) => route.abort());
   await page.goto('/');
 
   await expect(page.locator('#errorBanner')).toBeVisible({ timeout: 90_000 });
@@ -22,7 +22,7 @@ test('缓存中的权重损坏后会重新下载并恢复', async ({ page }) => 
   });
 
   // Poison the cache the way a half-written or tampered entry would.
-  await page.evaluate(async sha => {
+  await page.evaluate(async (sha) => {
     const cache = await caches.open('pikafish-net-v1');
     await cache.put(
       new Request(`https://pikafish-js.local/net/${sha.toLowerCase()}`),
@@ -51,7 +51,7 @@ test('未知的构建参数回退到自动选择', async ({ page }) => {
 });
 
 test('构建资源缺失时报错而不是一直转圈', async ({ page }) => {
-  await page.route('**/engine/single-nosimd/**', route => route.abort());
+  await page.route('**/engine/single-nosimd/**', (route) => route.abort());
   await page.goto('/?build=single-nosimd');
 
   await expect(page.locator('#errorBanner')).toBeVisible({ timeout: 90_000 });

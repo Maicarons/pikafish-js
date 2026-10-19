@@ -27,7 +27,11 @@ export interface EmscriptenModule {
   FS: {
     writeFile(path: string, data: Uint8Array): void;
   };
-  cwrap(name: string, returnType: string | null, argTypes: string[]): (...args: unknown[]) => unknown;
+  cwrap(
+    name: string,
+    returnType: string | null,
+    argTypes: string[],
+  ): (...args: unknown[]) => unknown;
 }
 
 export type PikafishFactory = (options: Record<string, unknown>) => Promise<EmscriptenModule>;

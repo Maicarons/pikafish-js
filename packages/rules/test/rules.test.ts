@@ -57,7 +57,7 @@ describe('move generation', () => {
     // The red horse on b0 is blocked by the red rook on b1.
     expect(
       generateLegalMoves(position).some(
-        move => move.from.file === 1 && move.from.rank === 0 && move.to.rank === 2,
+        (move) => move.from.file === 1 && move.from.rank === 0 && move.to.rank === 2,
       ),
     ).toBe(false);
   });
@@ -65,8 +65,10 @@ describe('move generation', () => {
   it('rejects moves that expose the king', () => {
     const position = parseFen('4k4/9/9/9/9/9/9/9/4r4/4K4 w - - 0 1');
     const king = { file: 4, rank: 0 };
-    const moves = generateLegalMoves(position).filter(move => move.from.file === king.file && move.from.rank === king.rank);
-    expect(moves.every(move => move.to.file !== 3)).toBe(false);
+    const moves = generateLegalMoves(position).filter(
+      (move) => move.from.file === king.file && move.from.rank === king.rank,
+    );
+    expect(moves.every((move) => move.to.file !== 3)).toBe(false);
     expect(isKingInCheck(position, 'w')).toBe(true);
   });
 });

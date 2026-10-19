@@ -19,12 +19,19 @@
     },
     "./engine.worker.js": "./dist/engine.worker.js"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "NOTICE"
+  ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "build": "tsup && node scripts/build-worker.mjs",
+    "prepack": "node ../../scripts/copy-license.mjs .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --root ../.. packages/engine"
   },

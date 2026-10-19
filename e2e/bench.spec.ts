@@ -29,12 +29,20 @@ test('基准页跑完四种配置并给出机器可读结果', async ({ page }) 
   await page.goto('/bench.html?movetime=300');
 
   await expect
-    .poll(async () => page.evaluate(() => Boolean((window as unknown as { __bench?: { done: boolean } }).__bench?.done)), {
-      timeout: 280_000,
-    })
+    .poll(
+      async () =>
+        page.evaluate(() =>
+          Boolean((window as unknown as { __bench?: { done: boolean } }).__bench?.done),
+        ),
+      {
+        timeout: 280_000,
+      },
+    )
     .toBe(true);
 
-  const report = await page.evaluate(() => (window as unknown as { __bench?: BenchReport }).__bench);
+  const report = await page.evaluate(
+    () => (window as unknown as { __bench?: BenchReport }).__bench,
+  );
   expect(report?.error).toBeUndefined();
   expect(report?.rows).toHaveLength(4);
   for (const row of report?.rows ?? []) {

@@ -39,5 +39,7 @@ await writeFile(join(outDir, 'SHA256SUMS'), `${sums.sort().join('\n')}\n`);
 console.log(`Release assets written to ${outDir}`);
 
 async function fileSha256(path) {
-  return createHash('sha256').update(await readFile(path)).digest('hex');
+  return createHash('sha256')
+    .update(await readFile(path))
+    .digest('hex');
 }

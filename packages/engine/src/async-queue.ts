@@ -3,6 +3,20 @@ interface Waiter<T> {
   reject: (error: unknown) => void;
 }
 
+/**
+ * An async push/pull queue: `push()` from a listener, `for await` on the other
+ * side. Closing with an error rejects the pending reader.
+ *
+ * Used for the `analyze()` update stream; exported because it is handy for any
+ * producer/consumer bridge across the worker boundary.
+ *
+ * @example
+ * ```ts
+ * const queue = new AsyncQueue<AnalysisInfo>();
+ * engine.on('info', (info) => queue.push(info));
+ * for await (const info of queue) render(info);
+ * ```
+ */
 export class AsyncQueue<T> implements AsyncIterable<T> {
   private values: T[] = [];
   private waiters: Array<Waiter<T>> = [];
@@ -32,7 +46,8 @@ export class AsyncQueue<T> implements AsyncIterable<T> {
   [Symbol.asyncIterator](): AsyncIterator<T> {
     return {
       next: () => {
-        if (this.values.length) return Promise.resolve({ value: this.values.shift()!, done: false });
+        if (this.values.length)
+          return Promise.resolve({ value: this.values.shift()!, done: false });
         if (this.error) return Promise.reject(this.error);
         if (this.closed) return Promise.resolve({ value: undefined, done: true });
         return new Promise<IteratorResult<T>>((resolve, reject) => {

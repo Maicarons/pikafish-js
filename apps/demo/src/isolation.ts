@@ -22,7 +22,7 @@ export function registerIsolationWorker(): void {
   try {
     void container
       .register(workerUrl)
-      .then(registration => {
+      .then((registration) => {
         // An already-active worker from a previous visit may not have claimed
         // this client yet; asking it to claim avoids waiting for a navigation.
         if (registration.active && !container.controller) {

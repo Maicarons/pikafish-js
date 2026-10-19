@@ -7,7 +7,9 @@ import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const config = JSON.parse(await (await import('node:fs/promises')).readFile(join(root, 'engine.json'), 'utf8'));
+const config = JSON.parse(
+  await (await import('node:fs/promises')).readFile(join(root, 'engine.json'), 'utf8'),
+);
 const target = join(root, 'assets', 'pikafish.nnue');
 
 await mkdir(dirname(target), { recursive: true });
@@ -29,7 +31,7 @@ if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
 const total = Number(response.headers.get('content-length') ?? 0);
 let loaded = 0;
 const source = Readable.fromWeb(response.body);
-source.on('data', chunk => {
+source.on('data', (chunk) => {
   loaded += chunk.length;
   if (total) {
     const percent = ((loaded / total) * 100).toFixed(1);

@@ -1,11 +1,4 @@
-import {
-  boardKey,
-  cloneBoard,
-  countPieces,
-  findKing,
-  parseFen,
-  toFen,
-} from './board.js';
+import { boardKey, cloneBoard, countPieces, findKing, parseFen, toFen } from './board.js';
 import {
   applyMove,
   generateLegalMoves,
@@ -18,17 +11,15 @@ import {
 import { toChineseNotation, moveWithCheckSuffix } from './notation.js';
 import {
   START_FEN,
-  opposite,
   moveToUcci,
   type Color,
-  type GameReason,
-  type GameResult,
   type GameStatus,
   type Move,
   type MoveRecord,
   type Position,
 } from './types.js';
 
+/** True when neither side has anything but king, advisors and elephants. */
 export function insufficientMaterial(position: Position): boolean {
   const counts = countPieces(position.board);
   for (const color of ['w', 'b'] as const) {
@@ -38,6 +29,15 @@ export function insufficientMaterial(position: Position): boolean {
   return true;
 }
 
+/**
+ * Judges a single position: checkmate, stalemate (a loss in xiangqi), or still
+ * running. Repetition and the halfmove rule need history, so `Game` adds those.
+ *
+ * @example
+ * ```ts
+ * evaluatePosition(parseFen(START_FEN)); // { over: false, result: null, inCheck: false, legalMoves: 44 }
+ * ```
+ */
 export function evaluatePosition(position: Position): GameStatus {
   const legalMoves = generateLegalMoves(position);
   const inCheck = isKingInCheck(position, position.turn);
@@ -45,7 +45,13 @@ export function evaluatePosition(position: Position): GameStatus {
   if (legalMoves.length === 0) {
     return {
       over: true,
-      result: inCheck ? (position.turn === 'w' ? 'black' : 'red') : position.turn === 'w' ? 'black' : 'red',
+      result: inCheck
+        ? position.turn === 'w'
+          ? 'black'
+          : 'red'
+        : position.turn === 'w'
+          ? 'black'
+          : 'red',
       reason: inCheck ? 'checkmate' : 'stalemate',
       inCheck,
       legalMoves: 0,
@@ -53,16 +59,45 @@ export function evaluatePosition(position: Position): GameStatus {
   }
 
   if (insufficientMaterial(position)) {
-    return { over: true, result: 'draw', reason: 'insufficient', inCheck, legalMoves: legalMoves.length };
+    return {
+      over: true,
+      result: 'draw',
+      reason: 'insufficient',
+      inCheck,
+      legalMoves: legalMoves.length,
+    };
   }
 
   if (position.halfmove >= 120) {
-    return { over: true, result: 'draw', reason: 'sixty-move', inCheck, legalMoves: legalMoves.length };
+    return {
+      over: true,
+      result: 'draw',
+      reason: 'sixty-move',
+      inCheck,
+      legalMoves: legalMoves.length,
+    };
   }
 
   return { over: false, result: null, reason: null, inCheck, legalMoves: legalMoves.length };
 }
 
+/**
+ * A game with history: moves, undo, repetition counting and full adjudication.
+ *
+ * `Game` keeps the position immutable internally and caches its status, so
+ * `status()` is cheap to call on every render. Illegal moves and moves after the
+ * game ended throw `RulesError`.
+ *
+ * @example
+ * ```ts
+ * const game = new Game();
+ * game.moveUcci('b2e2');            // 炮二平五
+ * game.history.at(-1)?.notation;    // '炮二平五'
+ * game.undo();
+ *
+ * if (game.status().over) showResult(game.status());
+ * ```
+ */
 export class Game {
   private current: Position;
   private records: MoveRecord[] = [];
@@ -164,7 +199,7 @@ export class Game {
 
   repetitionCount(): number {
     const key = this.key(this.current);
-    return this.keys.filter(candidate => candidate === key).length;
+    return this.keys.filter((candidate) => candidate === key).length;
   }
 
   move(move: Move): MoveRecord {
@@ -236,24 +271,27 @@ export class Game {
 
   private perpetualCheckSide(): Color | null {
     const recent = this.records.slice(-12);
-    const redMoves = recent.filter(record => record.piece.color === 'w');
-    const blackMoves = recent.filter(record => record.piece.color === 'b');
-    const redAlwaysChecks = redMoves.length >= 2 && redMoves.every(record => record.check);
-    const blackAlwaysChecks = blackMoves.length >= 2 && blackMoves.every(record => record.check);
+    const redMoves = recent.filter((record) => record.piece.color === 'w');
+    const blackMoves = recent.filter((record) => record.piece.color === 'b');
+    const redAlwaysChecks = redMoves.length >= 2 && redMoves.every((record) => record.check);
+    const blackAlwaysChecks = blackMoves.length >= 2 && blackMoves.every((record) => record.check);
     if (redAlwaysChecks && !blackAlwaysChecks) return 'w';
     if (blackAlwaysChecks && !redAlwaysChecks) return 'b';
     return null;
   }
 }
 
+/** Convenience for callers that only have a FEN; see {@link evaluatePosition}. */
 export function statusForFen(fen: string): GameStatus {
   return evaluatePosition(parseFen(fen));
 }
 
+/** Whether the two kings face each other in this FEN. */
 export function kingsFacingInFen(fen: string): boolean {
   return kingsFacing(parseFen(fen).board);
 }
 
+/** The king's square in a FEN, or `null` when that side has none. */
 export function kingSquare(fen: string, color: Color) {
   return findKing(parseFen(fen).board, color);
 }

@@ -26,5 +26,9 @@ console.log(`Docs mounted at ${target}`);
 
 function run(command, args, extraEnv = {}) {
   console.log(`\n$ ${command} ${args.join(' ')}`);
-  execFileSync(command, args, { cwd: root, stdio: 'inherit', env: { ...process.env, ...extraEnv } });
+  execFileSync(command, args, {
+    cwd: root,
+    stdio: 'inherit',
+    env: { ...process.env, ...extraEnv },
+  });
 }

@@ -45,6 +45,8 @@ test('Vercel 形态：响应头已带隔离与 CSP', async ({ request, baseURL }
     .replace(/&amp;/g, '&');
   expect(policy).toContain("script-src 'self' 'wasm-unsafe-eval'");
   // Inline styles are used to place the 90 squares; inline scripts are not.
-  const scriptSrc = policy.split(';').find(directive => directive.trim().startsWith('script-src'));
+  const scriptSrc = policy
+    .split(';')
+    .find((directive) => directive.trim().startsWith('script-src'));
   expect(scriptSrc).not.toContain('unsafe-inline');
 });

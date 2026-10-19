@@ -96,7 +96,9 @@ test('提示画出建议着法', async ({ page }) => {
   await waitForReady(page);
 
   await page.click('#hintButton');
-  await expect.poll(async () => Boolean((await screen(page))?.hint), { timeout: 60_000 }).toBe(true);
+  await expect
+    .poll(async () => Boolean((await screen(page))?.hint), { timeout: 60_000 })
+    .toBe(true);
 
   const hint = (await screen(page))?.hint;
   expect(hint).toBeTruthy();
@@ -108,10 +110,14 @@ test('提示画出建议着法', async ({ page }) => {
 test('翻转棋盘只影响显示', async ({ page }) => {
   await page.goto('/?build=single-simd');
   const ready = await waitForReady(page);
-  const leftBefore = await page.locator(square(0, 9)).evaluate(el => (el as HTMLElement).style.left);
+  const leftBefore = await page
+    .locator(square(0, 9))
+    .evaluate((el) => (el as HTMLElement).style.left);
 
   await page.click('#flipButton');
-  const leftAfter = await page.locator(square(0, 9)).evaluate(el => (el as HTMLElement).style.left);
+  const leftAfter = await page
+    .locator(square(0, 9))
+    .evaluate((el) => (el as HTMLElement).style.left);
 
   expect(leftAfter).not.toBe(leftBefore);
   expect((await screen(page))?.fen).toBe(ready.fen);
@@ -146,7 +152,7 @@ test('分析面板给出候选着法', async ({ page }) => {
 
 test('生产构建带严格 CSP 且无违规', async ({ page }) => {
   const violations: string[] = [];
-  page.on('console', message => {
+  page.on('console', (message) => {
     if (/Content Security Policy|Refused to (load|execute|create|apply)/i.test(message.text())) {
       violations.push(message.text());
     }
@@ -179,6 +185,9 @@ test('可访问性：状态有 live region，按钮有 aria-pressed', async ({ p
   await expect(page.locator('#board')).toHaveAttribute('role', 'group');
   await expect(page.locator('#board')).toHaveAttribute('aria-describedby', 'boardHelp');
   await expect(page.locator('#sideToggle [data-side="w"]')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('#sideToggle [data-side="b"]')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#sideToggle [data-side="b"]')).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
   await expect(page.locator('#boardHelp')).toHaveCount(1);
 });

@@ -144,9 +144,9 @@ function publish(rows: Row[], manifest: Manifest, done: boolean): void {
 const HEADERS = ['构建', '线程', 'Hash', '初始化', '深度', '节点数', 'NPS', '结果'];
 
 function render(rows: Row[], manifest: Manifest): void {
-  const header = HEADERS.map(h => `<th>${h}</th>`).join('');
+  const header = HEADERS.map((h) => `<th>${h}</th>`).join('');
   const body = rows
-    .map(row => {
+    .map((row) => {
       const cells = row.ok
         ? [
             row.build,
@@ -158,8 +158,17 @@ function render(rows: Row[], manifest: Manifest): void {
             row.nps.toLocaleString('en-US'),
             row.bestmove,
           ]
-        : [row.build, `${row.requestedThreads}`, '—', `${row.initMs} ms`, '—', '—', '—', row.error ?? '失败'];
-      return `<tr>${cells.map(c => `<td>${c}</td>`).join('')}</tr>`;
+        : [
+            row.build,
+            `${row.requestedThreads}`,
+            '—',
+            `${row.initMs} ms`,
+            '—',
+            '—',
+            '—',
+            row.error ?? '失败',
+          ];
+      return `<tr>${cells.map((c) => `<td>${c}</td>`).join('')}</tr>`;
     })
     .join('');
 
@@ -175,7 +184,7 @@ function render(rows: Row[], manifest: Manifest): void {
   const markdown = [
     `| ${HEADERS.join(' | ')} |`,
     `| ${HEADERS.map(() => '---').join(' | ')} |`,
-    ...rows.map(row =>
+    ...rows.map((row) =>
       row.ok
         ? `| \`${row.build}\` | ${row.appliedThreads} | ${row.hashMB} MB | ${row.initMs} ms | ${row.depth} | ${row.nodes} | ${row.nps} | ${row.bestmove} |`
         : `| \`${row.build}\` | ${row.requestedThreads} | — | ${row.initMs} ms | — | — | — | ${row.error} |`,
@@ -187,7 +196,7 @@ function render(rows: Row[], manifest: Manifest): void {
   markdownEl.textContent = markdown;
 }
 
-void boot().catch(error => {
+void boot().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
   setStatus(message, true);
   (window as unknown as { __bench?: unknown }).__bench = { done: true, error: message };

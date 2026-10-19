@@ -35,7 +35,7 @@ function contentSecurityPolicy(): Plugin {
     apply: 'build',
     transformIndexHtml: {
       order: 'post',
-      handler: html => ({
+      handler: (html) => ({
         html,
         tags: [
           {
@@ -63,8 +63,14 @@ export default defineConfig({
   },
   resolve: {
     alias: [
-      { find: /^@pikafish-js\/rules$/, replacement: resolvePath('../../packages/rules/src/index.ts') },
-      { find: /^pikafish-js\/worker-runtime$/, replacement: resolvePath('../../packages/engine/src/worker-runtime.ts') },
+      {
+        find: /^@pikafish-js\/rules$/,
+        replacement: resolvePath('../../packages/rules/src/index.ts'),
+      },
+      {
+        find: /^pikafish-js\/worker-runtime$/,
+        replacement: resolvePath('../../packages/engine/src/worker-runtime.ts'),
+      },
       { find: /^pikafish-js$/, replacement: resolvePath('../../packages/engine/src/index.ts') },
     ],
   },

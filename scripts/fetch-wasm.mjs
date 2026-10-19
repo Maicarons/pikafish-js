@@ -17,8 +17,11 @@ const outRoot = join(root, 'dist', 'wasm');
 const builds = ['threads-simd', 'single-simd', 'single-nosimd'];
 
 const args = parseArgs(process.argv.slice(2));
-const base = (args.url ?? process.env.PIKAFISH_WASM_URL ??
-  'https://github.com/official-pikafish/pikafish-js/releases/latest/download').replace(/\/+$/, '');
+const base = (
+  args.url ??
+  process.env.PIKAFISH_WASM_URL ??
+  'https://github.com/official-pikafish/pikafish-js/releases/latest/download'
+).replace(/\/+$/, '');
 
 console.log(`Fetching WASM assets from ${base}`);
 
@@ -26,8 +29,8 @@ const sums = await fetchText(`${base}/SHA256SUMS`);
 const expected = new Map(
   sums
     .split('\n')
-    .map(line => line.trim().split(/\s+/))
-    .filter(parts => parts.length === 2)
+    .map((line) => line.trim().split(/\s+/))
+    .filter((parts) => parts.length === 2)
     .map(([hash, name]) => [name, hash.toLowerCase()]),
 );
 if (!expected.size) throw new Error('SHA256SUMS is empty or malformed.');
@@ -49,7 +52,8 @@ for (const build of builds) {
     }
     const bytes = await fetchBytes(`${base}/${name}`);
     const actual = sha256(bytes);
-    if (actual !== hash) throw new Error(`${name} SHA-256 mismatch: expected ${hash}, got ${actual}`);
+    if (actual !== hash)
+      throw new Error(`${name} SHA-256 mismatch: expected ${hash}, got ${actual}`);
     await writeFile(target, bytes);
     console.log(`  ${name} verified (${bytes.byteLength} bytes)`);
   }

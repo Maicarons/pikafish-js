@@ -21,18 +21,35 @@
     "fetch:net": "node scripts/fetch-net.mjs",
     "assemble:demo": "node scripts/assemble-demo.mjs",
     "site": "npm run build:rules && npm run build:engine && npm run assemble:demo && npm run build:demo",
+    "check:pack": "node scripts/check-pack.mjs",
+    "check:links": "node scripts/check-links.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "npm run build:demo && playwright test",
-    "test:e2e:headed": "npm run build:demo && playwright test --headed",
-    "test:stress": "npm run build:demo && playwright test --grep=@stress --grep-invert=/a^/",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test:e2e": "npm run build && playwright test",
+    "test:e2e:headed": "npm run build && playwright test --headed",
+    "test:stress": "npm run build && playwright test --grep=@stress --grep-invert=/a^/",
     "serve:dist": "node scripts/serve-static.mjs --root apps/demo/dist",
+    "bench": "node scripts/bench.mjs",
     "typecheck": "npm run typecheck -w @pikafish-js/rules && npm run typecheck -w pikafish-js && npm run typecheck -w @pikafish-js/demo && npm run typecheck:e2e",
     "typecheck:e2e": "tsc -p tsconfig.e2e.json",
-    "verify": "npm run typecheck && npm run test && npm run build",
+    "verify": "npm run lint && npm run format:check && npm run typecheck && npm run test && npm run build && npm run check:links && npm run check:pack",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "prepare": "husky || true"
+  },
+  "lint-staged": {
+    "*.{ts,mjs,js,cjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,yml,yaml,css,html}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.1",
@@ -41,6 +58,9 @@
     "@types/node": "^24.0.0",
     "esbuild": "^0.25.0",
     "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
     "prettier": "^3.9.10",
     "tsup": "^8.5.0",
     "typescript": "^5.9.0",

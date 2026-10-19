@@ -90,7 +90,13 @@ export function createStaticServer({ root, isolation = true, cache = 'no-store' 
   });
 }
 
-export async function listen({ root, port = 0, isolation = true, cache = 'no-store', host = '127.0.0.1' }) {
+export async function listen({
+  root,
+  port = 0,
+  isolation = true,
+  cache = 'no-store',
+  host = '127.0.0.1',
+}) {
   const server = createStaticServer({ root, isolation, cache });
   await new Promise((resolvePromise, reject) => {
     server.once('error', reject);
@@ -99,7 +105,7 @@ export async function listen({ root, port = 0, isolation = true, cache = 'no-sto
   const address = server.address();
   return {
     port: typeof address === 'object' && address ? address.port : port,
-    close: () => new Promise(resolvePromise => server.close(() => resolvePromise())),
+    close: () => new Promise((resolvePromise) => server.close(() => resolvePromise())),
   };
 }
 

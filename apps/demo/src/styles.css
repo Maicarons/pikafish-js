@@ -22,9 +22,9 @@
   --green: #39745a;
   --shadow: 0 24px 60px rgba(78, 53, 28, 0.12);
   --radius: 18px;
-  --font-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-  --font-display: "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif;
-  --font-piece: "KaiTi", "STKaiti", "Noto Serif SC", "Songti SC", serif;
+  --font-body: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-display: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
+  --font-piece: 'KaiTi', 'STKaiti', 'Noto Serif SC', 'Songti SC', serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -104,7 +104,9 @@ a {
   color: #fbebd1;
   font-family: var(--font-display);
   font-size: 27px;
-  box-shadow: inset 0 0 0 1px rgba(255, 235, 203, 0.35), 0 8px 18px rgba(112, 35, 26, 0.28);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 235, 203, 0.35),
+    0 8px 18px rgba(112, 35, 26, 0.28);
 }
 
 .page {
@@ -411,7 +413,7 @@ a {
 
 .square.last-from::before,
 .square.last-to::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 5%;
   border-radius: 50%;
@@ -420,7 +422,7 @@ a {
 }
 
 .square.selected::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 2%;
   border-radius: 50%;
@@ -441,14 +443,21 @@ a {
   font-weight: 700;
   line-height: 1;
   user-select: none;
-  background:
-    radial-gradient(circle at 34% 26%, #fffaf0 0%, #f0dfc0 42%, #d9bd8e 78%, #c3a06b 100%);
+  background: radial-gradient(
+    circle at 34% 26%,
+    #fffaf0 0%,
+    #f0dfc0 42%,
+    #d9bd8e 78%,
+    #c3a06b 100%
+  );
   border: 2px solid rgba(130, 82, 37, 0.35);
   box-shadow:
     0 2px 0 rgba(130, 82, 37, 0.4),
     0 7px 12px rgba(91, 55, 22, 0.28),
     inset 0 0 0 2px rgba(255, 250, 236, 0.5);
-  transition: transform 140ms ease, box-shadow 140ms ease;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .square:hover .piece {
@@ -485,7 +494,7 @@ a {
 
 .square.hint-from::after,
 .square.hint-to::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   border-radius: 50%;
@@ -511,7 +520,7 @@ a {
 }
 
 .square.can-capture::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 2%;
   border-radius: 50%;
@@ -587,7 +596,10 @@ a {
   color: var(--muted);
   font-size: 12px;
   cursor: pointer;
-  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease;
 }
 
 .tool-button:hover:not(:disabled) {
@@ -695,8 +707,10 @@ select {
   border-radius: 10px;
   appearance: none;
   background:
-    linear-gradient(45deg, transparent 50%, var(--muted) 50%) calc(100% - 18px) 16px / 5px 5px no-repeat,
-    linear-gradient(135deg, var(--muted) 50%, transparent 50%) calc(100% - 13px) 16px / 5px 5px no-repeat,
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%) calc(100% - 18px) 16px / 5px 5px
+      no-repeat,
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%) calc(100% - 13px) 16px / 5px 5px
+      no-repeat,
     var(--panel-solid);
   color: var(--text);
   font-size: 13px;
@@ -720,7 +734,10 @@ select {
   color: var(--muted);
   font-size: 12px;
   cursor: pointer;
-  transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .segmented button.active {
@@ -740,13 +757,19 @@ select {
   font-weight: 700;
   letter-spacing: 0.08em;
   cursor: pointer;
-  box-shadow: 0 8px 18px rgba(126, 36, 28, 0.22), inset 0 1px 0 rgba(255, 224, 190, 0.28);
-  transition: transform 140ms ease, box-shadow 140ms ease;
+  box-shadow:
+    0 8px 18px rgba(126, 36, 28, 0.22),
+    inset 0 1px 0 rgba(255, 224, 190, 0.28);
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .primary-button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 11px 22px rgba(126, 36, 28, 0.26), inset 0 1px 0 rgba(255, 224, 190, 0.3);
+  box-shadow:
+    0 11px 22px rgba(126, 36, 28, 0.26),
+    inset 0 1px 0 rgba(255, 224, 190, 0.3);
 }
 
 .primary-button:active {
@@ -929,7 +952,7 @@ select {
 
 .move-ucci {
   color: var(--muted);
-  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
   font-size: 9px;
   opacity: 0.7;
 }

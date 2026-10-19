@@ -8,12 +8,7 @@ import {
   validateFen,
   validateMove,
 } from './uci.js';
-import {
-  clampHash,
-  clampThreads,
-  chooseBuild,
-  detectCapabilities,
-} from './capabilities.js';
+import { clampHash, clampThreads, chooseBuild, detectCapabilities } from './capabilities.js';
 import type {
   AnalysisInfo,
   BuildAssets,
@@ -56,6 +51,25 @@ interface ResolvedNet {
   transfer: Transferable[];
 }
 
+/**
+ * A running Pikafish engine inside a dedicated Web Worker.
+ *
+ * Instances come from {@link createEngine}. Every method is safe to call while a
+ * search is running; `analyze()` returns a handle whose `updates` stream ends at
+ * `bestmove`. Call {@link dispose} when the engine is no longer needed: a worker
+ * plus its WebAssembly heap cannot be reclaimed otherwise.
+ *
+ * @example
+ * ```ts
+ * const engine = await createEngine({ netUrl: '/engine/pikafish.nnue' });
+ *
+ * const handle = await engine.analyze({ fen: START_FEN, depth: 20, multiPV: 3 });
+ * for await (const info of handle.updates) show(info);
+ * const { bestmove } = await handle.result;
+ *
+ * engine.dispose();
+ * ```
+ */
 export class PikafishEngine {
   readonly capabilities: Capabilities;
   readonly build: BuildName;
@@ -73,7 +87,12 @@ export class PikafishEngine {
   private debugLines: string[] = [];
   private options: PikafishOptions;
 
-  private constructor(worker: Worker, options: PikafishOptions, build: BuildName, capabilities: Capabilities) {
+  private constructor(
+    worker: Worker,
+    options: PikafishOptions,
+    build: BuildName,
+    capabilities: Capabilities,
+  ) {
     this.worker = worker;
     this.options = options;
     this.build = build;
@@ -155,7 +174,7 @@ export class PikafishEngine {
     this.assertAlive();
     return new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
-        const index = this.readyWaiters.findIndex(waiter => waiter.timer === timer);
+        const index = this.readyWaiters.findIndex((waiter) => waiter.timer === timer);
         if (index >= 0) this.readyWaiters.splice(index, 1);
         reject(new PikafishError('Timed out waiting for readyok.', 'ENGINE_INIT_FAILED'));
       }, timeoutMs);
@@ -272,7 +291,13 @@ export class PikafishEngine {
     let initTimer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {
       initTimer = setTimeout(
-        () => reject(new PikafishError('Timed out loading the engine or NNUE weights.', 'ENGINE_INIT_FAILED')),
+        () =>
+          reject(
+            new PikafishError(
+              'Timed out loading the engine or NNUE weights.',
+              'ENGINE_INIT_FAILED',
+            ),
+          ),
         300000,
       );
     });
@@ -311,7 +336,9 @@ export class PikafishEngine {
     try {
       this.worker.postMessage({ type: 'command', command: line } satisfies MainToWorker);
     } catch (error) {
-      this.failSearch(new PikafishError('Failed to send a command to the engine.', 'ENGINE_CRASHED', error));
+      this.failSearch(
+        new PikafishError('Failed to send a command to the engine.', 'ENGINE_CRASHED', error),
+      );
     }
   }
 
@@ -330,7 +357,7 @@ export class PikafishEngine {
     );
     await Promise.race([
       search.result.catch(() => undefined),
-      new Promise<void>(resolve => setTimeout(resolve, 2000)),
+      new Promise<void>((resolve) => setTimeout(resolve, 2000)),
     ]);
     if (this.currentSearch === search) this.currentSearch = null;
     if (!settled) {
@@ -467,7 +494,11 @@ export class PikafishEngine {
   }
 
   private handleWorkerError = (event: ErrorEvent): void => {
-    const error = new PikafishError(event.message || 'Engine worker crashed.', 'ENGINE_CRASHED', event);
+    const error = new PikafishError(
+      event.message || 'Engine worker crashed.',
+      'ENGINE_CRASHED',
+      event,
+    );
     if (!this.readyInfo) {
       this.initReject?.(error);
       this.initReject = null;
@@ -478,7 +509,11 @@ export class PikafishEngine {
   };
 
   private handleMessageError = (event: MessageEvent): void => {
-    const error = new PikafishError('Could not deserialize a worker message.', 'WORKER_ERROR', event);
+    const error = new PikafishError(
+      'Could not deserialize a worker message.',
+      'WORKER_ERROR',
+      event,
+    );
     this.emit('error', error);
   };
 
@@ -501,7 +536,8 @@ export class PikafishEngine {
 
 function resolveAssets(options: PikafishOptions, build: BuildName): BuildAssets {
   const selected = options.builds?.[build];
-  const shortcut = options.jsUrl && options.wasmUrl ? { js: options.jsUrl, wasm: options.wasmUrl } : null;
+  const shortcut =
+    options.jsUrl && options.wasmUrl ? { js: options.jsUrl, wasm: options.wasmUrl } : null;
   const assets = selected ?? shortcut;
   if (!assets) {
     throw new PikafishError(`Missing JS/WASM assets for build ${build}.`, 'BUILD_UNAVAILABLE');
@@ -519,9 +555,7 @@ function resolveNet(options: PikafishOptions): ResolvedNet {
   if (hasData) {
     const source = options.netData!;
     const data =
-      source instanceof Uint8Array
-        ? (source.slice().buffer as ArrayBuffer)
-        : source.slice(0);
+      source instanceof Uint8Array ? (source.slice().buffer as ArrayBuffer) : source.slice(0);
     return {
       workerNet: {
         kind: 'data',
@@ -556,6 +590,29 @@ function now(): number {
   return typeof performance !== 'undefined' ? performance.now() : Date.now();
 }
 
+/**
+ * Creates a worker, loads a WebAssembly build, writes the NNUE weights and
+ * completes the UCI handshake.
+ *
+ * Rejects with a {@link PikafishError} when the page is not cross-origin
+ * isolated (`BUILD_UNAVAILABLE`), an asset or the weights cannot be fetched, or
+ * the weights do not match `netSha256`.
+ *
+ * @example
+ * ```ts
+ * import { createEngine } from 'pikafish-js';
+ * import workerUrl from 'pikafish-js/engine.worker.js?url';
+ *
+ * const engine = await createEngine({
+ *   builds: {
+ *     'threads-simd': { js: '/engine/pikafish.js', wasm: '/engine/pikafish.wasm' },
+ *   },
+ *   netUrl: '/engine/pikafish.nnue',
+ *   netSha256: 'bf3982…73ac',
+ *   workerFactory: () => new Worker(workerUrl, { type: 'classic' }),
+ * });
+ * ```
+ */
 export async function createEngine(options: PikafishOptions = {}): Promise<PikafishEngine> {
   return PikafishEngine.create(options);
 }

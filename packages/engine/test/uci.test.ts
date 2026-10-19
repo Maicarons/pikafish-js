@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  parseBestmove,
-  parseInfoLine,
-  validateFen,
-  validateMove,
-} from '../src/uci.ts';
+import { parseBestmove, parseInfoLine, validateFen, validateMove } from '../src/uci.ts';
 import { buildGoCommand, buildPositionCommand, formatOption } from '../src/uci.ts';
 import { PikafishError } from '../src/types.ts';
 
@@ -78,9 +73,9 @@ describe('validation', () => {
   it('accepts a legal FEN and rejects malformed ones', () => {
     expect(() => validateFen(START_FEN)).not.toThrow();
     expect(() => validateFen('9/9/9/9/9/9/9/9/9 w - - 0 1')).toThrow(PikafishError);
-    expect(() => validateFen('rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR x - - 0 1')).toThrow(
-      PikafishError,
-    );
+    expect(() =>
+      validateFen('rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR x - - 0 1'),
+    ).toThrow(PikafishError);
   });
 
   it('accepts UCCI moves and rejects everything else', () => {

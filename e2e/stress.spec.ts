@@ -16,7 +16,9 @@ test('@stress 连续对局与搜索后内存不持续增长', async ({ page, bro
   const samples: Array<{ round: number; heapMB: number }> = [];
   const readHeap = async () => {
     const bytes = await page.evaluate(
-      () => (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0,
+      () =>
+        (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory
+          ?.usedJSHeapSize ?? 0,
     );
     return Math.round((bytes / (1024 * 1024)) * 10) / 10;
   };
@@ -50,8 +52,8 @@ test('@stress 连续对局与搜索后内存不持续增长', async ({ page, bro
   // climb, while normal GC sawtooth stays inside the allowance.
   const third = Math.max(1, Math.floor(samples.length / 3));
   const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
-  const early = mean(samples.slice(0, third).map(sample => sample.heapMB));
-  const late = mean(samples.slice(-third).map(sample => sample.heapMB));
+  const early = mean(samples.slice(0, third).map((sample) => sample.heapMB));
+  const late = mean(samples.slice(-third).map((sample) => sample.heapMB));
 
   expect(late, `heap went from ${early} MB to ${late} MB: ${JSON.stringify(samples)}`).toBeLessThan(
     early * 1.5 + 30,

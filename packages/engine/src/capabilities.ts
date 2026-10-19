@@ -6,8 +6,24 @@ const SIMD_PROBE = new Uint8Array([
   253, 98, 11,
 ]);
 
+/**
+ * Reads what the current browser can do: WebAssembly, SIMD, cross-origin
+ * isolation, `SharedArrayBuffer`, device memory and core count.
+ *
+ * `deviceMemory` is Chrome-only and undefined elsewhere; callers must treat it
+ * as a hint, never as a hard limit.
+ *
+ * @example
+ * ```ts
+ * const caps = detectCapabilities();
+ * if (!caps.crossOriginIsolated) showIsolationHelp();
+ * ```
+ */
 export function detectCapabilities(): Capabilities {
-  const global = globalThis as typeof globalThis & { deviceMemory?: number; crossOriginIsolated?: boolean };
+  const global = globalThis as typeof globalThis & {
+    deviceMemory?: number;
+    crossOriginIsolated?: boolean;
+  };
   const webAssembly = typeof WebAssembly === 'object';
   let simd = false;
   if (webAssembly) {
@@ -22,12 +38,32 @@ export function detectCapabilities(): Capabilities {
     simd,
     crossOriginIsolated: global.crossOriginIsolated === true,
     sharedArrayBuffer: typeof SharedArrayBuffer !== 'undefined',
-    deviceMemory: typeof navigator !== 'undefined' ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory : undefined,
-    hardwareConcurrency: typeof navigator !== 'undefined' ? Math.max(1, navigator.hardwareConcurrency || 1) : 4,
+    deviceMemory:
+      typeof navigator !== 'undefined'
+        ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory
+        : undefined,
+    hardwareConcurrency:
+      typeof navigator !== 'undefined' ? Math.max(1, navigator.hardwareConcurrency || 1) : 4,
   };
 }
 
-export function chooseBuild(capabilities: Capabilities, options: Pick<PikafishOptions, 'build' | 'builds'> = {}): BuildName {
+/**
+ * Picks the best build the device can run.
+ *
+ * Throws `BUILD_UNAVAILABLE` when the page is not cross-origin isolated: every
+ * Pikafish build starts at least one pthread, so `single-*` is about one engine
+ * thread and a smaller heap, not about running without `SharedArrayBuffer`.
+ *
+ * @example
+ * ```ts
+ * const build = chooseBuild(detectCapabilities()); // 'threads-simd' | 'single-simd' | …
+ * const engine = await createEngine({ build, builds });
+ * ```
+ */
+export function chooseBuild(
+  capabilities: Capabilities,
+  options: Pick<PikafishOptions, 'build' | 'builds'> = {},
+): BuildName {
   if (!capabilities.webAssembly) {
     throw new PikafishError('This browser does not support WebAssembly.', 'UNSUPPORTED_ENV');
   }
@@ -63,6 +99,7 @@ export function chooseBuild(capabilities: Capabilities, options: Pick<PikafishOp
   throw new PikafishError('No compatible engine build is available.', 'BUILD_UNAVAILABLE');
 }
 
+/** Suggested engine thread count: 4 at most, one fewer than the core count. */
 export function recommendedThreads(capabilities: Capabilities): number {
   const memory = capabilities.deviceMemory ?? 8;
   const cores = capabilities.hardwareConcurrency;
@@ -70,12 +107,19 @@ export function recommendedThreads(capabilities: Capabilities): number {
   return Math.max(1, Math.min(4, cores - 1));
 }
 
-export function clampThreads(value: number | undefined, capabilities: Capabilities, build: BuildName): number {
+/** Forces one thread on `single-*` builds and clamps the rest to 1–8. */
+export function clampThreads(
+  value: number | undefined,
+  capabilities: Capabilities,
+  build: BuildName,
+): number {
   if (build !== 'threads-simd') return 1;
-  const requested = Number.isFinite(value) && value ? Math.floor(value) : recommendedThreads(capabilities);
+  const requested =
+    Number.isFinite(value) && value ? Math.floor(value) : recommendedThreads(capabilities);
   return Math.max(1, Math.min(8, requested));
 }
 
+/** Suggested transposition table size in MB for a build: 16 on low-memory devices. */
 export function recommendedHash(capabilities: Capabilities, build: BuildName): number {
   const memory = capabilities.deviceMemory ?? 8;
   if (build !== 'threads-simd') return memory <= 4 ? 16 : 32;
@@ -83,13 +127,20 @@ export function recommendedHash(capabilities: Capabilities, build: BuildName): n
   return 64;
 }
 
-export function clampHash(value: number | undefined, capabilities: Capabilities, build: BuildName): number {
-  const requested = Number.isFinite(value) && value ? Math.floor(value) : recommendedHash(capabilities, build);
+/** Clamps a hash size to what the device and build can afford. */
+export function clampHash(
+  value: number | undefined,
+  capabilities: Capabilities,
+  build: BuildName,
+): number {
+  const requested =
+    Number.isFinite(value) && value ? Math.floor(value) : recommendedHash(capabilities, build);
   const memory = capabilities.deviceMemory ?? 8;
   const max = memory <= 2 ? 32 : memory <= 4 ? 64 : build === 'threads-simd' ? 256 : 128;
   return Math.max(1, Math.min(max, requested));
 }
 
+/** Human-readable label for a build, used by the demo's build selector. */
 export function buildLabel(build: BuildName): string {
   switch (build) {
     case 'threads-simd':

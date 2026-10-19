@@ -11,8 +11,12 @@ import {
   inBounds,
 } from './types.js';
 
+/** Thrown for malformed FEN and illegal moves. `code` is stable; `message` is for humans. */
 export class RulesError extends Error {
-  constructor(message: string, readonly code = 'RULES_ERROR') {
+  constructor(
+    message: string,
+    readonly code = 'RULES_ERROR',
+  ) {
     super(message);
     this.name = 'RulesError';
   }
@@ -28,26 +32,39 @@ const FEN_PIECES: Record<string, PieceType> = {
   p: 'p',
 };
 
+/** A 10×9 board with no pieces. Rows are ranks, columns are files. */
 export function emptyBoard(): Board {
   return Array.from({ length: 10 }, () => Array.from({ length: 9 }, () => null));
 }
 
+/** Deep copy, so callers can mutate a board without touching the position it came from. */
 export function cloneBoard(board: Board): Board {
-  return board.map(row => row.map(piece => (piece ? { ...piece } : null)));
+  return board.map((row) => row.map((piece) => (piece ? { ...piece } : null)));
 }
 
+/**
+ * The piece on a square, or `null` when empty or out of bounds.
+ *
+ * @example
+ * ```ts
+ * pieceAt(position.board, { file: 4, rank: 0 }); // { color: 'w', type: 'k' }
+ * ```
+ */
 export function pieceAt(board: Board, square: Square): Piece | null {
   if (!inBounds(square)) return null;
   return board[square.rank]?.[square.file] ?? null;
 }
 
+/** Writes or clears one square in place. */
 export function setPiece(board: Board, square: Square, piece: Piece | null): void {
-  if (!inBounds(square)) throw new RulesError(`Square out of bounds: ${square.file},${square.rank}`);
+  if (!inBounds(square))
+    throw new RulesError(`Square out of bounds: ${square.file},${square.rank}`);
   const row = board[square.rank];
   if (!row) throw new RulesError(`Board row missing: ${square.rank}`);
   row[square.file] = piece;
 }
 
+/** The king's square, or `null` if that side has no king (malformed or analysis position). */
 export function findKing(board: Board, color: Color): Square | null {
   for (let rank = 0; rank < 10; rank++) {
     for (let file = 0; file < 9; file++) {
@@ -58,6 +75,18 @@ export function findKing(board: Board, color: Color): Square | null {
   return null;
 }
 
+/**
+ * Parses a UCCI FEN into a position, throwing `RulesError` on malformed input
+ * instead of returning a half-built board.
+ *
+ * Rank 0 is Red's back rank; the first FEN field is rank 9, as in UCCI.
+ *
+ * @example
+ * ```ts
+ * const position = parseFen(START_FEN);
+ * position.turn; // 'w'
+ * ```
+ */
 export function parseFen(fen: string): Position {
   const parts = fen.trim().split(/\s+/);
   if (parts.length < 4) throw new RulesError('FEN must contain at least 4 fields', 'FEN_INVALID');
@@ -83,17 +112,26 @@ export function parseFen(fen: string): Position {
       setPiece(board, { file, rank }, { color: char === char.toUpperCase() ? RED : BLACK, type });
       file++;
     }
-    if (file !== 9) throw new RulesError(`FEN rank ${displayRank + 1} does not contain 9 files`, 'FEN_INVALID');
+    if (file !== 9)
+      throw new RulesError(`FEN rank ${displayRank + 1} does not contain 9 files`, 'FEN_INVALID');
   }
 
   const turn: Color = side === 'b' || side === 'B' ? BLACK : RED;
-  if (side !== 'w' && side !== 'W' && side !== 'b' && side !== 'B' && side !== 'r' && side !== 'R') {
+  if (
+    side !== 'w' &&
+    side !== 'W' &&
+    side !== 'b' &&
+    side !== 'B' &&
+    side !== 'r' &&
+    side !== 'R'
+  ) {
     throw new RulesError(`Invalid FEN side to move: ${side}`, 'FEN_INVALID');
   }
 
   const redKing = findKing(board, RED);
   const blackKing = findKing(board, BLACK);
-  if (!redKing || !blackKing) throw new RulesError('FEN must contain exactly one king per side', 'FEN_INVALID');
+  if (!redKing || !blackKing)
+    throw new RulesError('FEN must contain exactly one king per side', 'FEN_INVALID');
 
   const halfmove = halfmoveText ? Number(halfmoveText) : 0;
   const fullmove = fullmoveText ? Number(fullmoveText) : 1;
@@ -107,6 +145,14 @@ export function parseFen(fen: string): Position {
   return { board, turn, halfmove, fullmove };
 }
 
+/**
+ * Serialises a position back to FEN.
+ *
+ * @example
+ * ```ts
+ * toFen(parseFen(START_FEN)) === START_FEN; // true
+ * ```
+ */
 export function toFen(position: Position): string {
   const rows: string[] = [];
   for (let displayRank = 0; displayRank < 10; displayRank++) {
@@ -132,10 +178,12 @@ export function toFen(position: Position): string {
   return `${rows.join('/')} ${position.turn} - - ${position.halfmove} ${position.fullmove}`;
 }
 
+/** The initial position, Red to move. */
 export function startPosition(): Position {
   return parseFen(START_FEN);
 }
 
+/** Piece placement plus side to move, without move counters: the repetition key. */
 export function boardKey(position: Position): string {
   const rows: string[] = [];
   for (let rank = 0; rank < 10; rank++) {
@@ -149,10 +197,12 @@ export function boardKey(position: Position): string {
   return `${rows.join('/')} ${position.turn}`;
 }
 
+/** Full FEN without the halfmove/fullmove counters, used as a position key. */
 export function positionKey(position: Position): string {
   return `${boardKey(position)} ${position.halfmove} ${position.fullmove}`;
 }
 
+/** Per-side piece counts, for material display and insufficient-material checks. */
 export function countPieces(board: Board): Record<Color, Record<PieceType, number>> {
   const counts: Record<Color, Record<PieceType, number>> = {
     w: { k: 0, a: 0, b: 0, n: 0, r: 0, c: 0, p: 0 },

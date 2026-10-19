@@ -153,6 +153,17 @@ export type EngineErrorCode =
   | 'SEARCH_ABORTED'
   | 'DISPOSED';
 
+/**
+ * Every engine failure carries a stable `code`, so callers can branch on the
+ * cause instead of matching messages.
+ *
+ * @example
+ * ```ts
+ * catch (error) {
+ *   if (error instanceof PikafishError && error.code === 'NET_HASH_MISMATCH') retry();
+ * }
+ * ```
+ */
 export class PikafishError extends Error {
   constructor(
     message: string,

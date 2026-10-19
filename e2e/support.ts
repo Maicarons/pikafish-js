@@ -16,7 +16,13 @@ export type DemoScreen = {
   selected: { file: number; rank: number } | null;
   hint: { from: { file: number; rank: number }; to: { file: number; rank: number } } | null;
   status: { over: boolean; result: string | null; reason: string | null; inCheck: boolean };
-  engineInfo: { build: string; threads: number; hashMB: number; netBytes: number; netCached: boolean } | null;
+  engineInfo: {
+    build: string;
+    threads: number;
+    hashMB: number;
+    netBytes: number;
+    netCached: boolean;
+  } | null;
   boardFocused: boolean;
 };
 
@@ -49,7 +55,10 @@ export async function waitForReadyAcrossReloads(page: Page, timeout = 180_000): 
         const banner = document.querySelector<HTMLElement>('#errorBanner');
         return {
           ready: Boolean(hook?.ready),
-          error: banner && !banner.hidden ? (document.querySelector('#errorText')?.textContent ?? '') : '',
+          error:
+            banner && !banner.hidden
+              ? (document.querySelector('#errorText')?.textContent ?? '')
+              : '',
         };
       });
       if (state.ready) return;

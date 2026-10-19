@@ -26,7 +26,7 @@ export interface Position {
   fullmove: number;
 }
 
-export interface FenInfo extends Position {}
+export type FenInfo = Position;
 
 export type GameResult = 'red' | 'black' | 'draw' | null;
 
@@ -60,11 +60,19 @@ export interface MoveRecord {
   notation: string;
 }
 
+/** File letters, in order. File 0 (`a`) is Red's right-hand file in UCCI terms. */
 export const FILES = 'abcdefghi';
+/** Red. Xiangqi colours are `w`/`b` in UCCI so the same parsing works as in chess. */
 export const RED: Color = 'w';
+/** Black. */
 export const BLACK: Color = 'b';
+/**
+ * The initial position. Rank 0 is Red's back rank, so the first FEN field is
+ * rank 9 (Black's back rank).
+ */
 export const START_FEN = 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1';
 
+/** Per-colour piece names, used by the board UI and by notation. */
 export const PIECE_NAMES: Record<PieceType, { red: string; black: string }> = {
   k: { red: '帅', black: '将' },
   a: { red: '仕', black: '士' },
@@ -75,10 +83,12 @@ export const PIECE_NAMES: Record<PieceType, { red: string; black: string }> = {
   p: { red: '兵', black: '卒' },
 };
 
+/** `'w'` ↔ `'b'`. */
 export function opposite(color: Color): Color {
   return color === 'w' ? 'b' : 'w';
 }
 
+/** Whether a square lies on the board. */
 export function inBounds(square: Square): boolean {
   return (
     Number.isInteger(square.file) &&
@@ -90,14 +100,24 @@ export function inBounds(square: Square): boolean {
   );
 }
 
+/** Whether two squares are the same. */
 export function sameSquare(a: Square, b: Square): boolean {
   return a.file === b.file && a.rank === b.rank;
 }
 
+/**
+ * Square to UCCI text, e.g. `{ file: 4, rank: 0 }` → `"e0"`.
+ *
+ * @example
+ * ```ts
+ * squareName({ file: 4, rank: 0 }); // 'e0'
+ * ```
+ */
 export function squareName(square: Square): string {
   return `${FILES[square.file] ?? '?'}${square.rank}`;
 }
 
+/** Parses a square such as `"e0"`, or `null` when it is not on the board. */
 export function parseSquare(value: string): Square | null {
   if (!/^[a-i][0-9]$/.test(value)) return null;
   const file = FILES.indexOf(value[0]!);
@@ -105,10 +125,20 @@ export function parseSquare(value: string): Square | null {
   return file >= 0 && rank >= 0 && rank <= 9 ? { file, rank } : null;
 }
 
+/**
+ * Move to UCCI text, the form the engine speaks and the form to send back to
+ * `engine.play()`'s `moves` array.
+ *
+ * @example
+ * ```ts
+ * moveToUcci({ from: { file: 1, rank: 2 }, to: { file: 4, rank: 2 } }); // 'b2e2'
+ * ```
+ */
 export function moveToUcci(move: Move): string {
   return `${squareName(move.from)}${squareName(move.to)}`;
 }
 
+/** Parses UCCI text into a move. Coordinates only: no legality or turn check. */
 export function parseUcci(value: string): Move | null {
   const text = value.trim().toLowerCase();
   if (text.length !== 4) return null;
@@ -117,6 +147,7 @@ export function parseUcci(value: string): Move | null {
   return from && to ? { from, to } : null;
 }
 
+/** Whether the piece belongs to Red. `null` is not a piece, so it is `false`. */
 export function isRedPiece(piece: Piece | null | undefined): boolean {
   return !!piece && piece.color === 'w';
 }

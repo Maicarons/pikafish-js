@@ -1,4 +1,10 @@
-import type { EmscriptenModule, MainToWorker, PikafishFactory, WorkerNetSource, WorkerToMain } from './protocol.js';
+import type {
+  EmscriptenModule,
+  MainToWorker,
+  PikafishFactory,
+  WorkerNetSource,
+  WorkerToMain,
+} from './protocol.js';
 
 const NET_PATH = '/pikafish.nnue';
 const CACHE_NAME = 'pikafish-net-v1';
@@ -44,7 +50,11 @@ export function startEngineWorker(scope: DedicatedWorkerGlobalScope): void {
       try {
         state.command(message.command);
       } catch (error) {
-        post({ type: 'error', code: 'ENGINE_CRASHED', message: error instanceof Error ? error.message : String(error) });
+        post({
+          type: 'error',
+          code: 'ENGINE_CRASHED',
+          message: error instanceof Error ? error.message : String(error),
+        });
       }
       return;
     }
@@ -88,7 +98,12 @@ export function startEngineWorker(scope: DedicatedWorkerGlobalScope): void {
     state.command = command as (line: string) => void;
     initializeEngine();
     state.ready = true;
-    post({ type: 'net-progress', loaded: result.bytes.byteLength, total: result.bytes.byteLength, cached: result.cached });
+    post({
+      type: 'net-progress',
+      loaded: result.bytes.byteLength,
+      total: result.bytes.byteLength,
+      cached: result.cached,
+    });
   }
 
   async function loadNet(
@@ -110,12 +125,22 @@ export function startEngineWorker(scope: DedicatedWorkerGlobalScope): void {
         const bytes = new Uint8Array(await hit.arrayBuffer());
         try {
           await verifyHash(bytes, source.sha256, verify);
-          post({ type: 'net-progress', loaded: bytes.byteLength, total: bytes.byteLength, cached: true });
+          post({
+            type: 'net-progress',
+            loaded: bytes.byteLength,
+            total: bytes.byteLength,
+            cached: true,
+          });
           return { bytes, cached: true };
         } catch (error) {
           // A corrupt or outdated cache entry must not brick the engine.
           await cache.delete(key).catch(() => undefined);
-          if (error && typeof error === 'object' && 'code' in error && (error as { code?: unknown }).code === 'NET_HASH_MISMATCH') {
+          if (
+            error &&
+            typeof error === 'object' &&
+            'code' in error &&
+            (error as { code?: unknown }).code === 'NET_HASH_MISMATCH'
+          ) {
             post({ type: 'stderr', line: 'Cached NNUE failed verification; downloading again.' });
           } else {
             throw error;
@@ -126,7 +151,9 @@ export function startEngineWorker(scope: DedicatedWorkerGlobalScope): void {
 
     const response = await fetch(source.url);
     if (!response.ok) {
-      throw Object.assign(new Error(`Network fetch failed: HTTP ${response.status}`), { code: 'NET_LOAD_FAILED' });
+      throw Object.assign(new Error(`Network fetch failed: HTTP ${response.status}`), {
+        code: 'NET_LOAD_FAILED',
+      });
     }
 
     const total = Number(response.headers.get('content-length') ?? 0) || 0;
@@ -161,14 +188,23 @@ export function startEngineWorker(scope: DedicatedWorkerGlobalScope): void {
     if (key) {
       const cache = await caches.open(CACHE_NAME);
       await cache
-        .put(key, new Response(toArrayBuffer(bytes), { headers: { 'Content-Type': 'application/octet-stream' } }))
+        .put(
+          key,
+          new Response(toArrayBuffer(bytes), {
+            headers: { 'Content-Type': 'application/octet-stream' },
+          }),
+        )
         .catch(() => undefined);
     }
     return { bytes, cached: false };
   }
 }
 
-async function verifyHash(bytes: Uint8Array, expected: string | undefined, verify: boolean): Promise<void> {
+async function verifyHash(
+  bytes: Uint8Array,
+  expected: string | undefined,
+  verify: boolean,
+): Promise<void> {
   if (!expected || !verify) return;
   if (!globalThis.crypto?.subtle) {
     throw Object.assign(new Error('SHA-256 verification is unavailable in this context.'), {
@@ -177,7 +213,7 @@ async function verifyHash(bytes: Uint8Array, expected: string | undefined, verif
   }
   const digest = await crypto.subtle.digest('SHA-256', toArrayBuffer(bytes));
   const actual = Array.from(new Uint8Array(digest))
-    .map(byte => byte.toString(16).padStart(2, '0'))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('');
   if (actual !== expected.toLowerCase()) {
     throw Object.assign(new Error(`NNUE SHA-256 mismatch: expected ${expected}, got ${actual}`), {
@@ -198,7 +234,12 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 }
 
 function errorCode(error: unknown): string {
-  if (error && typeof error === 'object' && 'code' in error && typeof (error as { code?: unknown }).code === 'string') {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'code' in error &&
+    typeof (error as { code?: unknown }).code === 'string'
+  ) {
     return (error as { code: string }).code;
   }
   return 'ENGINE_INIT_FAILED';
