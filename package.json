@@ -1,0 +1,43 @@
+{
+  "name": "pikafish-js-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Run the Pikafish xiangqi engine in the browser via WebAssembly.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run build:rules && npm run build:engine && npm run dev -w @pikafish-js/demo",
+    "build": "npm run build:rules && npm run build:engine && npm run build -w @pikafish-js/demo",
+    "build:rules": "npm run build -w @pikafish-js/rules",
+    "build:engine": "npm run build -w pikafish-js",
+    "build:demo": "npm run build -w @pikafish-js/demo",
+    "build:wasm": "bash scripts/build-wasm.sh",
+    "package:wasm": "node scripts/package-wasm.mjs",
+    "fetch:wasm": "node scripts/fetch-wasm.mjs",
+    "fetch:net": "node scripts/fetch-net.mjs",
+    "assemble:demo": "node scripts/assemble-demo.mjs",
+    "site": "npm run build:rules && npm run build:engine && npm run assemble:demo && npm run build:demo",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "npm run typecheck -w @pikafish-js/rules && npm run typecheck -w pikafish-js && npm run typecheck -w @pikafish-js/demo",
+    "verify": "npm run typecheck && npm run test && npm run build",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.25.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0",
+    "vitepress": "^1.6.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

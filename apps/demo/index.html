@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f2e8d5" />
+    <meta
+      name="description"
+      content="在浏览器中与 Pikafish 中国象棋引擎对弈，支持七档难度、局面分析和本地 WebAssembly 推理。"
+    />
+    <title>Pikafish 象棋 · 浏览器对弈</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2246%22 fill=%22%23f6ead2%22 stroke=%22%238b5a2b%22 stroke-width=%226%22/><text x=%2250%22 y=%2272%22 font-size=%2266%22 text-anchor=%22middle%22 fill=%22%23a52a1e%22 font-family=%22serif%22>象</text></svg>" />
+    <script>
+      // GitHub Pages cannot set COOP/COEP headers. Register a same-origin
+      // service worker that adds them, then reload once. Vercel sends the
+      // headers itself, so this block does nothing there.
+      if (!crossOriginIsolated && 'serviceWorker' in navigator) {
+        navigator.serviceWorker
+          .register(new URL('./coi-serviceworker.js', document.baseURI).href)
+          .then(function (registration) {
+            if (registration.active && !navigator.serviceWorker.controller) {
+              registration.active.postMessage({ type: 'claim' });
+            }
+          })
+          .catch(function () {
+            // Single-thread fallback still works without isolation.
+          });
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (!sessionStorage.getItem('pikafish-coi-reloaded')) {
+            sessionStorage.setItem('pikafish-coi-reloaded', '1');
+            location.reload();
+          }
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app">
+      <main class="boot-fallback">
+        <span class="boot-mark">象</span>
+        <p>正在准备棋盘…</p>
+      </main>
+    </div>
+    <noscript>这个演示需要启用 JavaScript。</noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,37 @@
+{
+  "upstream": {
+    "repository": "https://github.com/official-pikafish/Pikafish.git",
+    "commit": "545c4e3b251afbb94f493c6c5f32549f900e76fd",
+    "date": "2026-10-18T09:58:14+08:00"
+  },
+  "emsdk": "3.1.74",
+  "net": {
+    "release": "master-net",
+    "asset": "pikafish.nnue",
+    "url": "https://github.com/official-pikafish/Networks/releases/download/master-net/pikafish.nnue",
+    "size": 50241100,
+    "sha256": "bf3982711150bf2f8b49e99cd93421320f6ca914cfcf131dad5eb7f2402573ac",
+    "downloadedAt": "2026-10-19"
+  },
+  "builds": {
+    "threads-simd": {
+      "label": "线程 + SIMD",
+      "features": ["pthread", "simd128"],
+      "initialMemoryMB": 64,
+      "maximumMemoryMB": 1024,
+      "pthreadPoolSize": 8
+    },
+    "single-simd": {
+      "label": "单线程 + SIMD",
+      "features": ["simd128"],
+      "initialMemoryMB": 64,
+      "maximumMemoryMB": 512
+    },
+    "single-nosimd": {
+      "label": "兼容模式",
+      "features": [],
+      "initialMemoryMB": 64,
+      "maximumMemoryMB": 512
+    }
+  }
+}

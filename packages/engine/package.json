@@ -1,0 +1,32 @@
+{
+  "name": "pikafish-js",
+  "version": "0.1.0",
+  "description": "Run the Pikafish xiangqi engine in the browser via WebAssembly.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./worker-runtime": {
+      "types": "./dist/worker-runtime.d.ts",
+      "import": "./dist/worker-runtime.js"
+    },
+    "./engine.worker.js": "./dist/engine.worker.js"
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsup && node scripts/build-worker.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --root ../.. packages/engine"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

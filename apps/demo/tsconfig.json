@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+    "types": ["vite/client"],
+    "moduleResolution": "Bundler",
+    "baseUrl": "../..",
+    "paths": {
+      "@pikafish-js/rules": ["packages/rules/src/index.ts"],
+      "pikafish-js": ["packages/engine/src/index.ts"],
+      "pikafish-js/worker-runtime": ["packages/engine/src/worker-runtime.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "vite.config.ts"]
+}

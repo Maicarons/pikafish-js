@@ -1,0 +1,20 @@
+# NOTICE
+
+pikafish-js  
+Copyright (c) 2026 pikafish-js contributors
+
+## 项目许可
+
+本项目代码以 **GNU Affero General Public License v3.0 or later（AGPL-3.0-or-later）** 发布。完整条款见 `LICENSE`。
+
+## 上游与第三方
+
+- Pikafish 引擎：<https://github.com/official-pikafish/Pikafish>，GPL-3.0。本项目包含其源码的固定版本与最小 WebAssembly 入口补丁。
+- Pikafish NNUE 网络：由 `official-pikafish/Networks` 发布，适用其自身声明。核心 npm 包不包含网络文件；使用方通过 `netUrl` 或 `netData` 提供。
+- `coi-serviceworker`：MIT，用于 GitHub Pages 镜像启用 COOP/COEP。
+- 文档与原创 UI 素材：除非另有说明，采用 CC BY 4.0。
+- 其他第三方素材与代码的来源，记录在 `docs/reference/sources.md` 或对应目录的 `NOTICE` 中。
+
+## 网络交互
+
+本项目演示站以 AGPL-3.0-or-later 提供。通过网络使用演示站的用户，可从页面页脚获取对应源代码。

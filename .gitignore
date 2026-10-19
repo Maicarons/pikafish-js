@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# VitePress
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+
+# Build output
+dist/
+coverage/
+
+# Generated engine assets (WASM builds, NNUE weights, upstream checkout)
+assets/
+upstream/
+apps/demo/public/engine/
+
+# Local files
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/

@@ -1,0 +1,102 @@
+name: Deploy demo + docs to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/demo/**'
+      - 'packages/**'
+      - 'docs/**'
+      - 'scripts/**'
+      - 'patches/**'
+      - 'engine.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Setup Emscripten 3.1.74
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.74
+          actions-cache-folder: emsdk-cache
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download pinned NNUE weights
+        run: npm run fetch:net
+
+      - name: Build the three WASM variants
+        run: npm run build:wasm
+
+      - name: Package release assets
+        run: npm run package:wasm
+
+      - name: Assemble demo engine assets
+        run: npm run assemble:demo
+
+      - name: Build demo
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/
+        run: npm run build:rules && npm run build:engine && npm run build:demo
+
+      - name: Build docs
+        env:
+          DOCS_BASE: /${{ github.event.repository.name }}/docs/
+        run: npm run docs:build
+
+      - name: Mount docs under /docs/ of the demo site
+        run: |
+          mkdir -p apps/demo/dist/docs
+          cp -R docs/.vitepress/dist/. apps/demo/dist/docs/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/demo/dist
+
+      - name: Upload WASM release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: pikafish-wasm
+          path: dist/release/
+          if-no-files-found: error
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

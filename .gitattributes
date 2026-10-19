@@ -1,0 +1,18 @@
+# Normalize text files to LF so shell scripts and patches keep working on
+# Windows checkouts (`git apply` and bash both reject CRLF here).
+* text=auto eol=lf
+
+*.patch text eol=lf
+*.sh text eol=lf
+
+# Binary assets
+*.wasm binary
+*.nnue binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.zip binary
