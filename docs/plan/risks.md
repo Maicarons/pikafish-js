@@ -123,6 +123,12 @@
 4. 单线程构建作为默认可选；Safari 用户可一键切换。
 5. 在兼容矩阵中如实标注“Safari 多线程为实验性/稳定”，不隐瞒。
 
+**实测（pthread 池为空）**：`pthread_create()` 会静默挂起——Emscripten 按需创建的 worker
+握手永不完成，`createEngine()` 既不 resolve 也不 reject（表现为“永远在初始化”）。
+因此三套构建都**预分配** pthread 池并设 `-sPTHREAD_POOL_SIZE_STRICT=2`：池的预期大小由
+`clampThreads()`（threads-simd ≤ 8，其余固定 1）保证，一旦超出会立即报错而不是死锁。
+诊断这类问题的关键是看 worker 线程里 `Pikafish({...})` 的 promise 是否永远 pending。
+
 **预案**：若问题无法在发布前解决，Safari 默认单线程，多线程作为“实验性开关”。
 
 ---
@@ -148,6 +154,13 @@
 ### R09 打包器与 Worker 集成
 
 **事实**：Emscripten 生成物不是标准 ESM；pthread worker 需要重新加载主脚本；Vite/Next 对 `importScripts`、`new Worker(new URL(...))` 的处理不同。
+
+**实测（Vite dev）**：`new Worker(new URL('./engine.worker.ts', import.meta.url), { type: 'classic' })` 在
+`vite dev` 下会失败——dev 不做 worker 打包，会把入口以 ESM 提供（`import … from "/@fs/…"`），
+classic worker 直接抛 `Cannot use import statement outside a module`；`vite build` 打包后正常。
+另外 `new URL('pikafish-js/engine.worker.js', import.meta.url)` 中的裸包名 Vite 不解析。
+
+**结论**：普通宿主一律加载包内预构建的 `engine.worker.js`（自包含 IIFE），dev 与 build 行为一致。
 
 **触发信号**：开发环境正常、生产构建 404；多线程时报 “Cannot load script”；wasm MIME 错误。
 

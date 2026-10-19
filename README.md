@@ -2,7 +2,9 @@
 
 在浏览器中运行 [Pikafish](https://github.com/official-pikafish/Pikafish) 中国象棋引擎的前端 monorepo：纯前端人机对弈、本地局面分析，引擎以 WebAssembly 运行在专用 Worker 中，不上传任何棋局数据。
 
-> 当前状态：**v0.1 实现完成**。规则包、引擎包、演示站与三套 WASM 构建脚本均已落地，文档位于 `docs/`。
+> 当前状态：**v0.1 实现完成**。规则包、引擎包、演示站与三套 WASM 构建脚本均已落地；三套构建
+> 已在 Chromium 中实测跑通完整 UCI 流程（4 线程 1.21–1.39 MNPS），数字与复现方法见
+> [系统架构](docs/plan/architecture.md) 第 13 节；文档位于 `docs/`。
 
 ## 仓库结构
 
@@ -41,6 +43,9 @@ npm run dev
 
 `npm run dev` 会先构建 rules 与 engine 包，再启动 Vite。Vite 开发服务器已经设置 COOP/COEP 响应头，因此多线程构建可用。
 
+> Windows + MSYS/Git Bash：POSIX 版 `em++` 包装脚本在此环境不可执行，请用
+> `EMXX=em++.bat bash scripts/build-wasm.sh`（其余平台保持默认 `em++`）。
+
 ## 常用脚本
 
 | 脚本 | 说明 |
@@ -60,12 +65,31 @@ npm run dev
 | 构建 | 线程 | SIMD | 说明 |
 | --- | --- | --- | --- |
 | `threads-simd` | pthread 池 8 | 是 | 默认高性能构建 |
-| `single-simd` | 按需 1 个 pthread | 是 | 单线程、512 MB 堆上限 |
-| `single-nosimd` | 按需 1 个 pthread | 否 | 无 SIMD 设备兼容层 |
+| `single-simd` | pthread 池 2（引擎 1 线程） | 是 | 单线程、512 MB 堆上限 |
+| `single-nosimd` | pthread 池 2（引擎 1 线程） | 否 | 无 SIMD 设备兼容层 |
 
 > **所有构建都要求页面的跨源隔离（COOP/COEP）与 `SharedArrayBuffer`。** Pikafish 的
 > `ThreadPool` 至少需要一个 pthread；`single-*` 只是引擎单线程、堆更小，并不是无隔离
 > 的降级路径。没有隔离时 `createEngine()` 会抛出 `BUILD_UNAVAILABLE` 并给出提示。
+>
+> 三套构建都**预分配** pthread 池：池为空时 Emscripten 的按需创建会挂起，
+> 引擎初始化永远不返回（实测）。
+
+## 基准测试
+
+演示站自带 `bench.html`（页脚“基准测试”入口，线上为 `/bench.html`）。它在**当前浏览器**里
+依次加载四套配置并各跑一次固定时长搜索，输出表格与可粘贴的 Markdown：
+
+```text
+构建               线程   Hash     初始化   深度  节点数       NPS        结果
+threads-simd       4      64 MB    586 ms   23    4,166,538   1,388,846  b2e2
+threads-simd       1      64 MB    825 ms   23    825,172     275,057    g3g4
+single-simd        1      32 MB    842 ms   22    837,028     278,916    c3c4
+single-nosimd      1      32 MB    840 ms   15    115,242     38,375     b2e2
+```
+
+支持 `?movetime=3000` 与 `?fen=<UCCI FEN>` 覆盖搜索时长与局面。浏览器是唯一能运行 pthread
+wasm 的环境，因此这些数字由页面而非 Node 脚本产出；`docs/` 中记录的基准即来自该页面。
 
 ## 部署
 

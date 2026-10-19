@@ -9,16 +9,19 @@
 | 里程碑 | 状态 | 说明 |
 | --- | --- | --- |
 | M0 方案与脚手架 | ✅ 完成 | 文档站、`engine.json`、许可证与来源说明齐备 |
-| M1 WASM 构建 PoC | 🟡 脚本就绪，产物由 CI 产出 | `scripts/build-wasm.sh` 三构建可复现；本仓库不提交 wasm/nnue |
-| M2 核心 API | ✅ 完成 | `pikafish-js` 包：`analyze/play/stop/dispose`、能力探测、缓存、错误码 |
+| M1 WASM 构建 PoC | 🟡 三构建已在本地用 emsdk 3.1.74 实测产出并跑通 UCI；基准数据已写入[系统架构](/plan/architecture)第 13 节 | `scripts/build-wasm.sh` 可复现；本仓库不提交 wasm/nnue，由 CI 与 Release 产出 |
+| M2 核心 API | ✅ 完成 | `pikafish-js` 包：`analyze/play/stop/dispose`、能力探测、缓存、错误码；33 项单测通过 |
 | M3 规则与裁决 | 🟡 主体完成 | FEN、走法、将死/困毙/限着/重复/子力不足、中文记谱；长捉分类器留待 v0.2 |
-| M4 棋盘与演示 | ✅ 完成 | SVG 棋盘、7 档难度、分析、提示、悔棋、双部署配置 |
-| M5 稳定化 | 🟡 部分 | 单测与类型检查通过；跨浏览器矩阵与基准待 CI/真机执行 |
+| M4 棋盘与演示 | ✅ 完成 | SVG 棋盘、7 档难度、分析、提示、悔棋、双部署配置；已在 Chromium 中逐步验证 |
+| M5 稳定化 | 🟡 部分 | 单测与类型检查通过；跨浏览器矩阵与真机基准待 CI/真机执行 |
 | M6 发布 | 🟡 待触发 | `release.yml` 在 `v*` tag 上打包三构建并创建 Release |
 
-> **关键实现差异**：Pikafish 的 `ThreadPool` 至少需要一个 pthread，因此**三套构建都要求页面跨源隔离**
+> **关键实现差异 1**：Pikafish 的 `ThreadPool` 至少需要一个 pthread，因此**三套构建都要求页面跨源隔离**
 > （COOP/COEP + `SharedArrayBuffer`）。原计划中的“无隔离时自动降级到单线程”在技术上不可行；
 > `single-*` 构建表示引擎单线程、堆更小，而不是不需要隔离。详见[系统架构](/plan/architecture)第 4、14 节。
+>
+> **关键实现差异 2**：三套构建都必须**预分配** pthread 池。实测池为空时 `pthread_create()`
+> 的按需创建会挂起，引擎初始化永远不返回；`single-*` 因此也带 `-sPTHREAD_POOL_SIZE=2`。
 
 ## 1. 总体节奏
 
@@ -89,6 +92,19 @@
 - 能解释并复现“无 COOP/COEP 时多线程不可用”的行为。
 
 > M1 是项目最大的技术不确定性来源。若多线程在移动端内存上不稳定，优先采用 `single-simd`（单线程 + 较小堆上限）发布；它同样要求跨源隔离。
+
+**M1 实测结果（开发机 Windows + Chromium，起始局面 `movetime 3000`，演示站 `bench.html` 可复现）**：
+
+| 验收项 | 目标 | 实测 | 结论 |
+| --- | --- | --- | --- |
+| 4 线程 NPS | ≥ 1.0 MNPS | 1.21–1.39 MNPS（depth 22–23） | ✅ |
+| 单线程 SIMD NPS | ≥ 250 k | 230–280 k NPS（波动 ±15%） | ⚠️ 大致达到，需真机复测 |
+| 无 SIMD 构建 | 能完成一局 | depth 15，38–41 k NPS | ✅（不设 NPS 门槛） |
+| 三构建 `uci → position → go → bestmove` | 全部通过 | 全部通过 | ✅ |
+| wasm ≤ 1 MB/个 | 654–658 KB | ✅ |
+| 无隔离时报错 | 可诊断 | `BUILD_UNAVAILABLE` + 中文提示 | ✅ |
+| `stop` 响应 ≤ 100 ms | 未单独计时 | 待补测 |
+| 连续 10 局无崩溃 | 未执行 | M5 压测项 |
 
 ---
 
@@ -215,12 +231,23 @@
 | --- | --- | --- | --- |
 | `pages.yml` | push main / 手动 | 构建三构建 wasm，部署演示站（`/`）+ 文档（`/docs/`）到 GitHub Pages | < 15 分钟 |
 | `ci.yml` | PR / push main | typecheck、单测、构建（不依赖 wasm 产物） | < 5 分钟 |
-| `bench.yml` | 手动 / 每周 | 固定局面基准、内存、产物大小 | < 20 分钟 |
+| `bench.yml` | — | **未实现**（见下） | — |
 | `release.yml` | tag `v*` | 全量测试、打包、npm 发布、GitHub Release | < 20 分钟 |
+
+> **关于 `bench.yml`**：计划中的自动基准工作流没有实现。原因是它的两个用途都已由更可靠的方式覆盖：
+> 绝对性能只能在真实设备上测量，GitHub Runner 的噪声使其无法作为发布依据（计划本身也只把它当
+> “回归告警”）；而可复现的测量入口改成了演示站的 `bench.html`——它在**用户自己的浏览器**里跑完
+> 三套构建，输出可粘贴的 Markdown，比 Runner 数字更有意义。若之后需要回归告警，再按 `ci.yml`
+> 的 job 结构补一个 Playwright 版本即可。
 
 > Vercel 通过 Git 集成自动构建预览与生产环境；如需在 Actions 中显式部署，再加一个 `vercel deploy` 工作流，二者不要重复触发同一环境。
 
 ### 4.2 `ci.yml` 关键点
+
+> **实现状态**：仓库当前的 `ci.yml` 只包含 `verify` 一个 job（typecheck → test → build →
+> docs build），约 2 分钟。下表中的 `wasm` 与 `e2e` job 尚未实现：三套 wasm 的构建已经在
+> `pages.yml` 与 `release.yml` 中执行，而 Playwright 端到端矩阵（含无隔离/无 SIMD 上下文）
+> 仍是待办项。此处保留原始设计，便于后续补齐。
 
 ```yaml
 jobs:

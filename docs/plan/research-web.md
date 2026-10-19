@@ -407,15 +407,29 @@ Cross-Origin-Embedder-Policy: require-corp
 
 | 项 | 状态 |
 | --- | --- |
-| 662 KB / 80 KB 的 gzip/brotli 后体积 | 未实测 |
+| 662 KB / 80 KB 的 gzip/brotli 后体积 | **已实测**，见下表 |
 | Safari/iOS 上 4 线程与 1 GB 内存上限 | 未实测 |
 | Safari 15.2–16.3 的无 SIMD 构建 | 未实测 |
-| GitHub Pages + `coi-serviceworker` 的实际兼容性 | 未实测（需部署后验证） |
-| `--closure=1` 对 Pikafish 导出符号的影响 | 未实测 |
-| `PTHREAD_POOL_SIZE_STRICT=0` 在浏览器中的动态创建行为 | 未实测 |
+| GitHub Pages + `coi-serviceworker` 的实际兼容性 | 未实测（需部署后验证；无回归头部署时只验证了本地静态服务器） |
+| `--closure=1` 对 Pikafish 导出符号的影响 | 未使用该开关，未实测 |
+| 池为空时的按需 pthread 创建 | **已实测：挂起**。`PTHREAD_POOL_SIZE` 未设置时，`pthread_create()` 触发的 worker 握手永不完成，引擎初始化既不返回也不报错；因此三套构建都改为预分配池 |
 | 50 MB 网络在移动网络的完成率/放弃率 | 未实测 |
 | 参考实现 1.4 MNPS 的具体 CPU/浏览器版本 | 未完整披露 |
 | `stockfish.js` v19.0.1 的完整构建矩阵 | 以发布说明为准，未逐项复现 |
+
+### 10.1 本项目产物实测（2026-10，emsdk 3.1.74，`-O3`）
+
+| 产物 | 原始 | gzip -9 | brotli -q11 |
+| --- | --- | --- | --- |
+| `threads-simd` wasm | 657,901 B | 235,889 B | 180,259 B |
+| `threads-simd` JS 胶水 | 81,124 B | 22,356 B | 19,722 B |
+| `single-simd` wasm | 657,900 B | 235,888 B | 180,274 B |
+| `single-simd` JS 胶水 | 81,122 B | 22,355 B | 19,760 B |
+| `single-nosimd` wasm | 654,299 B | 234,494 B | 178,538 B |
+| `single-nosimd` JS 胶水 | 81,122 B | 22,355 B | 19,760 B |
+
+> wasm 的压缩比约 2.8:1。静态托管（Vercel/GitHub Pages）默认对 `.wasm` 开 gzip/brotli，
+> 因此首访下载量约为 230 KB（gzip）而不是 660 KB。
 
 ## 11. 来源
 

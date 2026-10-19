@@ -73,7 +73,7 @@ pikafish-js/
 │  │  │  │  ├─ net-cache.ts     # Cache Storage
 │  │  │  │  └─ integrity.ts     # SHA-256
 │  │  │  ├─ worker/
-│  │  │  │  └─ engine.worker.ts # 引擎宿主（classic worker）
+│  │  │  │  └─ engine.worker.ts # 引擎宿主源码（构建为 engine.worker.js，classic worker）
 │  │  │  ├─ errors.ts
 │  │  │  └─ types.ts
 │  │  ├─ assets/                 # 构建产物（gitignore，随 Release 分发）
@@ -113,13 +113,20 @@ pikafish-js/
 
 | 产物 | 线程 | SIMD | 适用环境 | 说明 |
 | --- | --- | --- | --- | --- |
-| `pikafish-threads-simd.js/.wasm` | pthread 池 8 | 128-bit | 跨源隔离页面 | 默认高性能构建 |
-| `pikafish-single-simd.js/.wasm` | 按需 1 个 pthread | 128-bit | 跨源隔离页面 | 单线程、512 MB 堆上限 |
-| `pikafish-single-nosimd.js/.wasm` | 按需 1 个 pthread | 无 | 无 SIMD 的设备 | 兼容层；不承诺 NPS |
+| `pikafish-threads-simd.js/.wasm` | 预分配 pthread 池 8 | 128-bit | 跨源隔离页面 | 默认高性能构建 |
+| `pikafish-single-simd.js/.wasm` | 预分配 pthread 池 2 | 128-bit | 跨源隔离页面 | 单线程、512 MB 堆上限 |
+| `pikafish-single-nosimd.js/.wasm` | 预分配 pthread 池 2 | 无 | 无 SIMD 的设备 | 兼容层；不承诺 NPS |
 
 > **所有构建都必须处于跨源隔离状态。** Pikafish 的 `ThreadPool` 至少会用一个
 > `pthread_create()` 启动主搜索线程，脱离 `-pthread` 无法编译；因此“单线程”指的是
 > 引擎只开 1 个搜索线程、使用更小的堆上限，而不是“不需要 SharedArrayBuffer”。
+>
+> **三套构建都必须预分配 pthread 池（`-sPTHREAD_POOL_SIZE`），不能依赖 Emscripten 的
+> 按需创建。** 实测：池为空时 `pthread_create()` 会挂起——新 worker 的握手永远不完成，
+> 引擎初始化一直没有结果（既不报错也不返回）。池大小与运行时线程上限一致：`threads-simd`
+> 为 8，`single-*` 为 2；三套构建都带 `-sPTHREAD_POOL_SIZE_STRICT=2`，一旦池被意外用尽会
+> 立刻报错而不是静默死锁。
+>
 > 运行时按“SIMD → 线程数”选择：
 >
 > - 支持 SIMD：`threads-simd`（隔离页面默认）
@@ -153,7 +160,7 @@ em++ \
   -o dist/pikafish-threads-simd.js
 ```
 
-**单线程 + SIMD**：保留 `-pthread`（`ThreadPool` 必需），去掉 `-sPTHREAD_POOL_SIZE*`（线程按需创建），`MAXIMUM_MEMORY` 降为 `512MB`。
+**单线程 + SIMD**：保留 `-pthread`（`ThreadPool` 必需），改用 `-sPTHREAD_POOL_SIZE=2`（池必须预分配，见 §4.1 实测），`MAXIMUM_MEMORY` 降为 `512MB`。
 
 **单线程无 SIMD**：在单线程基础上再去掉 `-msimd128` 与 SSE 宏，其余保持一致。
 
@@ -163,7 +170,7 @@ em++ \
 - `-sENVIRONMENT=web,worker` 明确不支持 Node；Node 支持不在 v0.1 范围。
 - `-sINITIAL_MEMORY=64MB` 与上游默认一致，比参考实现的 256 MB 更适合移动端；按需增长，避免一上来就压高水位。
 - `-sMAXIMUM_MEMORY` 不是“立刻占用”，而是堆上限；线程构建 1 GB，单线程构建 512 MB，给 iOS 留出回退空间。
-- `-sPTHREAD_POOL_SIZE=8` 预分配 8 个 pthread worker；`Threads` 超过 8 会快速失败，必须在 API 层钳制。
+- `-sPTHREAD_POOL_SIZE` 预分配 pthread worker（线程构建 8，单线程构建 2）；`Threads` 超过池大小会被 `-sPTHREAD_POOL_SIZE_STRICT=2` 立即拒绝，因此 API 层必须钳制（`clampThreads()`：仅 `threads-simd` 可变，最大 8）。
 - `-sPTHREAD_POOL_SIZE_STRICT=2` 池耗尽时打印警告（值 `1` 才是直接报错）；`clampThreads()` 把 `Threads` 钳到 8，正常路径不会触发。
 - `-Wno-pthreads-mem-growth` 关闭 shared memory + growth 的编译警告；运行时仍要处理 `HEAPU8` 视图失效。
 
@@ -310,7 +317,7 @@ type WorkerToMain =
 ### 7.2 Worker 初始化伪代码
 
 ```ts
-// engine.worker.ts（示意）
+// engine.worker.js（示意；构建自 worker-entry.ts 的自包含 IIFE）
 let command: ((line: string) => void) | null = null
 
 self.onmessage = async (event) => {
@@ -597,16 +604,28 @@ const bytes = new Uint8Array(await (await cache.match(cacheKey))!.arrayBuffer())
 
 | 项 | 估算 | 说明 |
 | --- | --- | --- |
-| wasm 代码 | ~0.66 MB | 参考实现实测 662,419 B |
-| JS 胶水 | ~80 KB | 参考实现实测 80,121 B |
-| 网络文件 | 约 48 MiB | 当前官方 50,241,100 B；参考快照 50,706,378 B |
+| wasm 代码 | ~0.66 MB（gzip ~230 KB，brotli ~176 KB） | 实测 657,901 B / 657,900 B / 654,299 B；gzip 235,889 B，brotli 180,259 B |
+| JS 胶水 | ~81 KB（gzip ~22 KB，brotli ~19 KB） | 实测 81,124 B / 81,122 B；gzip 22,356 B，brotli 19,722 B |
+| 网络文件 | 约 48 MiB | 当前官方 50,241,100 B |
 | 网络解压后 | ~66 MiB | 引擎加载后常驻 wasm 堆 |
 | INITIAL_MEMORY | 64 MiB | 与上游默认一致，按需增长 |
 | MAXIMUM_MEMORY | 1 GiB（线程）/ 512 MiB（单线程） | 超出即失败，避免浏览器被杀 |
-| Hash（默认） | 16 MiB | 桌面建议 64 MiB；iOS 32 MiB |
-| pthread 栈 | 8 × 3 MiB = 24 MiB | 预分配池 |
-| 峰值 RSS（桌面 4 线程） | ~250–400 MB | 需实测校准 |
-| 峰值 RSS（移动单线程） | ~150–250 MB | 需实测校准 |
+| Hash（默认） | 64 MiB | 演示站默认；低内存设备降到 16–32 MiB |
+| pthread 栈 | 8 × 3 MiB = 24 MiB（threads）/ 2 × 3 MiB = 6 MiB（single） | 预分配池 |
+
+**实测（开发机 Windows + Chromium 32 核，起始局面，`movetime 3000`，`bench.html` 单次批量采集）**
+
+| 构建 | 线程 | 深度 | 节点数 | NPS | 初始化 |
+| --- | --- | --- | --- | --- | --- |
+| `threads-simd` | 4 | 23 | 4,166,538 | **1.39 M** | 0.59 s |
+| `threads-simd` | 1 | 23 | 825,172 | **275 k** | 0.83 s |
+| `single-simd` | 1 | 22 | 837,028 | **279 k** | 0.84 s |
+| `single-nosimd` | 1 | 15 | 115,242 | 38 k | 0.84 s |
+
+> 这是**单次采集的一条记录**，用 `bench.html` 可复现（页脚“基准测试”入口）。重复测量波动约
+> ±15%：4 线程在 1.21–1.39 MNPS 之间，单线程在 230–280 k NPS 之间，因此单线程相对 250 k
+> 目标是“大致达到”，不作承诺。`single-nosimd` 是兼容层：无 SIMD 时 NNUE 推理退化为标量，
+> 深度与 NPS 明显更差，只保证“能完成一局”。`threads-simd` 默认 Hash 64 MB，`single-*` 为 32 MB。
 
 > 上述为预算，不是承诺。M1 必须在目标设备上测量 `performance.memory`（Chrome）与 DevTools Memory，并把结果写回文档。
 
