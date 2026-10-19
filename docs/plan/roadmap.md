@@ -186,6 +186,16 @@
 - 键盘可完成“选子—落子—悔棋—重开”。
 - 页面无第三方追踪；网络面板只加载必要资源。
 
+**M4-11 已本地验证**：两条隔离路径都在本机按公网布局实测通过。
+
+| 部署路径 | 本地等价环境 | 结果 |
+| --- | --- | --- |
+| Vercel | `vite preview`（带 `vercel.json` 同款 COOP/COEP 头），根路径 | `crossOriginIsolated === true`，引擎就绪 |
+| GitHub Pages | 无响应头的静态服务器 + 仓库子路径 `/pikafish-js/` | Service Worker 注册并接管后 `crossOriginIsolated === true`，引擎就绪；`/pikafish-js/docs/` 文档站样式与导航正常 |
+
+未覆盖项：真实域名下的首次访问（SW 首访需刷新一次）、`bench.yml`（未实现），以及 M4-12 的公网可访问性——仓库尚未配置
+远端，`pages.yml` / `vercel.json` 的部署链路只能在推送后复核。
+
 ---
 
 ### M5 稳定化（第 12–13 周）

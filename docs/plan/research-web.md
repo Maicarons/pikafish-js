@@ -410,7 +410,7 @@ Cross-Origin-Embedder-Policy: require-corp
 | 662 KB / 80 KB 的 gzip/brotli 后体积 | **已实测**，见下表 |
 | Safari/iOS 上 4 线程与 1 GB 内存上限 | 未实测 |
 | Safari 15.2–16.3 的无 SIMD 构建 | 未实测 |
-| GitHub Pages + `coi-serviceworker` 的实际兼容性 | 未实测（需部署后验证；无回归头部署时只验证了本地静态服务器） |
+| GitHub Pages + `coi-serviceworker` 的实际兼容性 | **已实测（本地等价环境）**：无响应头的静态服务器 + 仓库子路径下，SW 注册、接管、注入 COOP/COEP 后 `crossOriginIsolated` 为 true，三套构建均可玩；真实域名下的首次访问（需刷新一次）仍待部署后确认 |
 | `--closure=1` 对 Pikafish 导出符号的影响 | 未使用该开关，未实测 |
 | 池为空时的按需 pthread 创建 | **已实测：挂起**。`PTHREAD_POOL_SIZE` 未设置时，`pthread_create()` 触发的 worker 握手永不完成，引擎初始化既不返回也不报错；因此三套构建都改为预分配池 |
 | 50 MB 网络在移动网络的完成率/放弃率 | 未实测 |

@@ -43,6 +43,10 @@ npm run dev
 
 `npm run dev` 会先构建 rules 与 engine 包，再启动 Vite。Vite 开发服务器已经设置 COOP/COEP 响应头，因此多线程构建可用。
 
+`npm run assemble:demo` 通过“写临时文件 + 改名”替换 `apps/demo/public/engine/` 下的资源，避免读者拿到半截
+wasm/NNUE。若同时有 `npm run dev` 或浏览器正在使用这些文件，Windows 可能暂时拒绝改名：脚本会重试并给出
+提示，此时停掉开发服务器再执行即可。
+
 > Windows + MSYS/Git Bash：POSIX 版 `em++` 包装脚本在此环境不可执行，请用
 > `EMXX=em++.bat bash scripts/build-wasm.sh`（其余平台保持默认 `em++`）。
 
