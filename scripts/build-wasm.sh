@@ -3,22 +3,26 @@
 #
 # Prerequisite: Emscripten 3.1.74 is active (`em++ --version`).
 # On CI use mymindstorm/setup-emsdk; locally use $EMSDK/emsdk_env.sh.
+# On Windows with MSYS/Git Bash the POSIX `em++` shim is not executable and
+# `em++.bat` must be used instead: `EMXX=em++.bat bash scripts/build-wasm.sh`.
 set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root"
+
+emxx="${EMXX:-em++}"
 
 commit=$(node -e "console.log(require('./engine.json').upstream.commit)")
 out_root="${OUT_DIR:-$root/dist/wasm}"
 upstream="$root/upstream"
 src_dir="$upstream/src"
 
-if ! command -v em++ >/dev/null 2>&1; then
-  echo "em++ not found. Activate emsdk 3.1.74 first." >&2
+if ! command -v "$emxx" >/dev/null 2>&1; then
+  echo "$emxx not found. Activate emsdk 3.1.74 first." >&2
   exit 1
 fi
 
-emcc_version=$(em++ --version | head -n 1)
+emcc_version=$("$emxx" --version | head -n 1)
 echo "Using $emcc_version"
 
 if [ ! -f "$src_dir/main.cpp" ]; then
@@ -90,7 +94,7 @@ build_one() {
   local out="$out_root/$name"
   mkdir -p "$out"
   echo "Building $name -> $out"
-  em++ \
+  "$emxx" \
     "${source_paths[@]}" \
     "${common_flags[@]}" \
     -sMAXIMUM_MEMORY="$max_memory" \
@@ -107,14 +111,18 @@ simd_flags=(
   -msimd128
 )
 
-thread_flags=(
-  -sPTHREAD_POOL_SIZE=8
-  -sPTHREAD_POOL_SIZE_STRICT=2
-)
+# Pikafish's ThreadPool always creates its search threads with pthread_create(),
+# so every variant needs a pool. Preallocating is required rather than optional:
+# Emscripten's on-demand worker creation from the module's main thread never
+# completes here, which leaves engine initialisation hung forever. The pool size
+# matches the thread clamp in packages/engine/src/capabilities.ts, and STRICT=2
+# turns any unexpected overflow into a loud error instead of a silent hang.
+threads_pool_flags=(-sPTHREAD_POOL_SIZE=8 -sPTHREAD_POOL_SIZE_STRICT=2)
+single_pool_flags=(-sPTHREAD_POOL_SIZE=2 -sPTHREAD_POOL_SIZE_STRICT=2)
 
-build_one threads-simd 1GB "${thread_flags[@]}" "${simd_flags[@]}"
-build_one single-simd 512MB "${simd_flags[@]}"
-build_one single-nosimd 512MB
+build_one threads-simd 1GB "${threads_pool_flags[@]}" "${simd_flags[@]}"
+build_one single-simd 512MB "${single_pool_flags[@]}" "${simd_flags[@]}"
+build_one single-nosimd 512MB "${single_pool_flags[@]}"
 
 node "$root/scripts/write-wasm-manifest.mjs" "$out_root"
 

@@ -23,15 +23,17 @@
     },
     "single-simd": {
       "label": "单线程 + SIMD",
-      "features": ["simd128"],
+      "features": ["pthread", "simd128"],
       "initialMemoryMB": 64,
-      "maximumMemoryMB": 512
+      "maximumMemoryMB": 512,
+      "pthreadPoolSize": 2
     },
     "single-nosimd": {
       "label": "兼容模式",
-      "features": [],
+      "features": ["pthread"],
       "initialMemoryMB": 64,
-      "maximumMemoryMB": 512
+      "maximumMemoryMB": 512,
+      "pthreadPoolSize": 2
     }
   }
 }
