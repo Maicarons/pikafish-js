@@ -31,5 +31,19 @@ export default defineConfig({
     target: 'es2022',
     outDir: 'dist',
     sourcemap: true,
+    rollupOptions: {
+      input: {
+        // The benchmark page is a real deliverable: it is the only place the
+        // pthread wasm modules can be measured, so the documented numbers can be
+        // reproduced on any device without a Node toolchain.
+        index: resolvePath('index.html'),
+        bench: resolvePath('bench.html'),
+      },
+      output: {
+        // Without this, Rollup names the chunk shared by both pages after one of
+        // its modules (`engine.worker-*.js`), which reads like the packaged worker.
+        chunkFileNames: 'assets/chunk-[hash].js',
+      },
+    },
   },
 });

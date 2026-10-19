@@ -17,6 +17,12 @@ import {
   type AnalysisInfo,
   type PikafishEngine,
 } from 'pikafish-js';
+// The engine host must be a *classic* worker: the Emscripten glue is loaded
+// with `importScripts`, which module workers do not provide. A classic worker
+// entry cannot be bundled by Vite's dev server, so we load the prebuilt,
+// self-contained `engine.worker.js` that ships with the engine package.
+// `?url` keeps it a plain asset, preserving the IIFE in production builds too.
+import engineWorkerUrl from 'pikafish-js/engine.worker.js?url';
 import './styles.css';
 
 type Level = {
@@ -175,9 +181,11 @@ app.innerHTML = `
     <footer class="footer">
       <span>Pikafish WebAssembly · 浏览器内推理，不发送棋局数据</span>
       <span class="footer-links">
+        <a href="https://github.com/official-pikafish/pikafish-js" target="_blank" rel="noreferrer">项目源码</a>
         <a href="https://github.com/official-pikafish/Pikafish" target="_blank" rel="noreferrer">上游引擎</a>
         <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noreferrer">AGPL-3.0</a>
-        <a href="/docs/" target="_blank" rel="noreferrer">项目文档</a>
+        <a href="bench.html">基准测试</a>
+        <a href="docs/" target="_blank" rel="noreferrer">项目文档</a>
       </span>
     </footer>
 
@@ -246,6 +254,7 @@ let latestInfo: AnalysisInfo | null = null;
 let activeAbort: AbortController | null = null;
 let analysisAbort: AbortController | null = null;
 let analysisFrame = 0;
+let statusFrame = 0;
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 let hintTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -328,9 +337,10 @@ render();
 void bootEngine();
 
 async function bootEngine(): Promise<void> {
-  setLoading('正在读取引擎清单…', 'engine/engine.json');
+  setLoading('正在检查运行环境…', '跨源隔离（COOP/COEP）与 SharedArrayBuffer');
   try {
     await ensureIsolation();
+    setLoading('正在读取引擎清单…', 'engine/engine.json');
     const manifestUrl = new URL('engine/engine.json', document.baseURI);
     const response = await fetch(manifestUrl);
     if (!response.ok) throw new Error(`引擎清单加载失败：HTTP ${response.status}`);
@@ -343,7 +353,7 @@ async function bootEngine(): Promise<void> {
       netUrl,
       netSha256: manifest.net.sha256,
       workerFactory: () =>
-        new Worker(new URL('./engine.worker.ts', import.meta.url), {
+        new Worker(engineWorkerUrl, {
           type: 'classic',
           name: 'pikafish-engine',
         }),
@@ -453,7 +463,7 @@ async function engineMove(): Promise<void> {
       latestInfo = info;
       analysisRows.set(1, info);
       scheduleAnalysisRender();
-      renderStatus(info);
+      scheduleStatusRender();
     }
 
     const result = await handle.result;
@@ -639,7 +649,7 @@ function renderBoard(): void {
         .join(' ');
 
       const label = piece
-        ? `${piece.color === 'w' ? '红' : '黑'}${PIECE_NAMES[piece.type].red} ${squareLabel(file, rank)}`
+        ? `${piece.color === 'w' ? '红' : '黑'}${pieceGlyph(piece)} ${squareLabel(file, rank)}`
         : `空 ${squareLabel(file, rank)}`;
       const legalLabel = isTarget ? '，可以走到' : '';
       squares.push(`
@@ -651,7 +661,7 @@ function renderBoard(): void {
           style="left:${left.toFixed(4)}%;top:${top.toFixed(4)}%"
           aria-label="${label}${legalLabel}"
         >
-          ${piece ? `<span class="piece ${piece.color === 'w' ? 'red' : 'black'}">${PIECE_NAMES[piece.type].red}</span>` : ''}
+          ${piece ? `<span class="piece ${piece.color === 'w' ? 'red' : 'black'}">${pieceGlyph(piece)}</span>` : ''}
           ${isTarget && !piece ? '<span class="move-dot"></span>' : ''}
         </button>
       `);
@@ -747,6 +757,12 @@ function boardPoint(square: Square): { x: number; y: number } {
     x: MARGIN + displayFile * CELL,
     y: MARGIN + displayRank * CELL,
   };
+}
+
+// Red and black use different glyphs for the same piece type (帅/将, 仕/士,
+// 相/象, 兵/卒); `PIECE_NAMES` already carries both.
+function pieceGlyph(piece: Piece): string {
+  return PIECE_NAMES[piece.type][piece.color === 'w' ? 'red' : 'black'];
 }
 
 function renderStatus(info?: AnalysisInfo): void {
@@ -874,6 +890,16 @@ function scheduleAnalysisRender(): void {
   analysisFrame = requestAnimationFrame(() => {
     analysisFrame = 0;
     renderAnalysis();
+  });
+}
+
+// Engine `info` lines arrive far faster than the display refreshes, so status
+// updates are coalesced into one render per animation frame.
+function scheduleStatusRender(): void {
+  if (statusFrame) return;
+  statusFrame = requestAnimationFrame(() => {
+    statusFrame = 0;
+    renderStatus(latestInfo ?? undefined);
   });
 }
 

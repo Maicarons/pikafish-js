@@ -1,3 +1,9 @@
+/* The `hidden` attribute must win over component `display` rules
+   (class selectors otherwise override the UA `[hidden] { display: none }`). */
+[hidden] {
+  display: none !important;
+}
+
 :root {
   color-scheme: light;
   --bg: #f4ead8;

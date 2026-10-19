@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pikafish 象棋 · 基准测试</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --line: rgba(128, 110, 90, 0.28);
+      }
+      body {
+        margin: 0;
+        padding: 28px 20px 60px;
+        font: 15px/1.6 "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      }
+      main {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 4px;
+      }
+      p.meta {
+        margin: 0 0 20px;
+        opacity: 0.72;
+        font-size: 13px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-variant-numeric: tabular-nums;
+      }
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 6px 10px;
+        text-align: right;
+        white-space: nowrap;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      caption {
+        text-align: left;
+        padding-bottom: 8px;
+        opacity: 0.72;
+        font-size: 13px;
+      }
+      pre {
+        margin: 22px 0 0;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow-x: auto;
+        font-size: 12.5px;
+      }
+      a {
+        color: inherit;
+      }
+      #status {
+        margin: 18px 0 0;
+        font-size: 13px;
+        opacity: 0.72;
+      }
+      .error {
+        color: #a92e24;
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>基准测试</h1>
+      <p class="meta">
+        在<b>本机当前浏览器</b>上依次加载四个配置（线程 + SIMD 4/1 线程、单线程 + SIMD、无 SIMD），
+        每个配置跑一次固定时长搜索。数字只代表这台设备，不是产品承诺。回到
+        <a href="./">对弈页面</a>。
+      </p>
+      <div id="status">正在准备…</div>
+      <div id="report"></div>
+      <pre id="markdown" hidden></pre>
+    </main>
+    <script type="module" src="/src/bench.ts"></script>
+  </body>
+</html>

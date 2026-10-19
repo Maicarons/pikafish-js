@@ -22,6 +22,8 @@ npm install pikafish-js
 
 ```ts
 import { createEngine } from 'pikafish-js';
+// Vite：把预构建 worker 作为静态资源取 URL（保持 classic + IIFE）
+import workerUrl from 'pikafish-js/engine.worker.js?url';
 
 const engine = await createEngine({
   builds: {
@@ -31,8 +33,9 @@ const engine = await createEngine({
   },
   netUrl: '/engine/pikafish.nnue',
   netSha256: '…',
-  // Vite / bundler 场景下显式创建 classic worker：
-  workerFactory: () => new Worker(new URL('pikafish-js/engine.worker.js', import.meta.url), { type: 'classic' }),
+  // 必须使用 classic worker：Emscripten 生成物通过 importScripts 载入。
+  // Vite 用 ?url 保持 IIFE 产物；webpack 可直接用 new URL(裸包名, import.meta.url)。
+  workerFactory: () => new Worker(workerUrl, { type: 'classic' }),
 });
 
 const handle = await engine.analyze({ fen: engine.info ? '…' : '', depth: 12 });
