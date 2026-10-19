@@ -149,7 +149,6 @@ em++ \
   -sEXPORTED_RUNTIME_METHODS=cwrap,FS \
   -sINITIAL_MEMORY=64MB -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=1GB \
   -sSTACK_SIZE=3MB -sPTHREAD_POOL_SIZE=8 -sPTHREAD_POOL_SIZE_STRICT=2 \
-  -Wno-pthreads-mem-growth \
   -sNO_EXIT_RUNTIME=1 -sINVOKE_RUN=0 \
   -o dist/pikafish-threads-simd.js
 ```
@@ -165,7 +164,7 @@ em++ \
 - `-sINITIAL_MEMORY=64MB` 与上游默认一致，比参考实现的 256 MB 更适合移动端；按需增长，避免一上来就压高水位。
 - `-sMAXIMUM_MEMORY` 不是“立刻占用”，而是堆上限；线程构建 1 GB，单线程构建 512 MB，给 iOS 留出回退空间。
 - `-sPTHREAD_POOL_SIZE=8` 预分配 8 个 pthread worker；`Threads` 超过 8 会快速失败，必须在 API 层钳制。
-- `-sPTHREAD_POOL_SIZE_STRICT=2` 池耗尽时直接报错，避免“开 9 线程静默卡死”；API 先钳制，再由引擎拒绝。
+- `-sPTHREAD_POOL_SIZE_STRICT=2` 池耗尽时打印警告（值 `1` 才是直接报错）；`clampThreads()` 把 `Threads` 钳到 8，正常路径不会触发。
 - `-Wno-pthreads-mem-growth` 关闭 shared memory + growth 的编译警告；运行时仍要处理 `HEAPU8` 视图失效。
 
 ### 4.3 上游补丁
@@ -271,13 +270,13 @@ interface Capabilities {
 
 | 条件 | 构建 | 默认 Threads | 默认 Hash |
 | --- | --- | --- | --- |
+| 未跨源隔离（无 COOP/COEP） | 直接报 `BUILD_UNAVAILABLE` | — | — |
 | 不支持 SIMD | single-nosimd | 1（忽略设置） | 16 MB |
 | 支持 SIMD + 跨源隔离 + 桌面 | threads-simd | `min(4, max(1, cores - 1))` | 64 MB |
 | 支持 SIMD + 跨源隔离 + 移动 | threads-simd | 2 | 16 MB |
-| 支持 SIMD + 非隔离 | single-simd | 1（忽略设置） | 16 MB |
 | 内存紧张（≤ 2 GB） | single-simd / single-nosimd | 1 | 16 MB |
 
-- 先判断 SIMD，再判断跨源隔离；无 SIMD 时即使页面隔离，也只能用 `single-nosimd`。
+- **先判断跨源隔离，再判断 SIMD**：隔离是硬前提，缺失时任何构建都无法运行；无 SIMD 时即使页面隔离，也只能用 `single-nosimd`。
 - 用户显式设置优先，但会被构建能力钳制（例如单线程构建下 `Threads=4` 自动降为 1，并发出 `degraded` 事件）。
 - 不允许 `Threads > PTHREAD_POOL_SIZE`，否则在 API 层直接报错或钳制。
 - `Hash` 上限按设备能力设置（桌面 256 MB，移动 64 MB，iOS 32 MB），避免用户把内存打爆。
@@ -552,13 +551,18 @@ create()
 | 失败点 | 错误码 | 用户提示 |
 | --- | --- | --- |
 | 浏览器不支持 wasm | `UNSUPPORTED_ENV` | 请升级浏览器 |
+| 页面未跨源隔离 / 无 SIMD 构建缺失 | `BUILD_UNAVAILABLE` | 用 COOP/COEP 或 `coi-serviceworker` 开启隔离 |
+| Worker 抛出未捕获异常 | `WORKER_ERROR` | 重启引擎；查看控制台 |
 | wasm/js 404 或 MIME 错 | `ASSET_LOAD_FAILED` | 检查静态资源路径与 `application/wasm` |
 | 网络入口缺失/冲突 | `NET_SOURCE_INVALID` | 只提供 `netUrl` 或 `netData` 之一 |
 | 网络下载失败 | `NET_LOAD_FAILED` | 检查 `netUrl`、CORS 与网络 |
-| 网络 SHA 不匹配 | `NET_HASH_MISMATCH` | 清除缓存并重新下载 |
+| 网络 SHA 不匹配 | `NET_HASH_MISMATCH` | 清除缓存并重新下载（已自动重试一次） |
+| 权重写入虚拟文件系统失败 | `NET_WRITE_FAILED` | 降低 `Hash`、换更小的网络文件 |
 | 引擎初始化失败 | `ENGINE_INIT_FAILED` | 网络与引擎版本不匹配，检查 `engine.json` |
-| 多线程启动失败 | `THREAD_SPAWN_FAILED` | 自动回退单线程并提示 |
-| 搜索超时 | `SEARCH_TIMEOUT` | 重启引擎；降低线程/Hash |
+| 引擎崩溃/退出 | `ENGINE_CRASHED` | 自动重启 Worker 并重放当前局面 |
+| FEN/走法非法 | `INVALID_FEN` / `INVALID_MOVE` | 校正输入（上游会 `exit(1)`，因此必须前置校验） |
+| 搜索被中止 | `SEARCH_ABORTED` | 正常路径，不提示 |
+| 显式设置被能力钳制 | （`degraded` 事件，非错误） | 提示“已按设备能力调整线程/Hash” |
 
 ## 12. 缓存与存储
 

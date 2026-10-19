@@ -16,14 +16,14 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | R01 | NNUE 权重独立声明 | 高 | 中 | P2 | 下游商业使用；核心包内含权重 | 核心包不带权重；双入口；发布页保留来源与声明 |
 | R02 | AGPL 源码义务未满足 | 中 | 高 | P1 | 部署站无源码入口；发布 wasm 无构建脚本 | 发布源码/构建脚本；页脚源码入口 |
-| R03 | 移动端内存不足/OOM | 高 | 高 | P1 | iOS 页面重载、Safari 崩溃 | 单线程降级、Hash 上限、延迟加载 |
-| R04 | 静态托管无法启用 COOP/COEP | 高 | 中 | P2 | `crossOriginIsolated === false` | Vercel 设头；Pages 用 coi-serviceworker；单线程回退 |
+| R03 | 移动端内存不足/OOM | 高 | 高 | P1 | iOS 页面重载、Safari 崩溃 | 优先 `single-*` 构建、Hash 上限、延迟加载 |
+| R04 | 静态托管无法启用 COOP/COEP | 高 | 中 | P2 | `crossOriginIsolated === false` | Vercel 设头；Pages 用 coi-serviceworker 注入同样的头 |
 | R05 | 上游/网络漂移导致不兼容 | 中 | 高 | P1 | 网络架构行不匹配、引擎初始化失败 | 固定 commit/SHA；CI 校验 |
 | R06 | 多线程在 Safari/iOS 不稳定 | 中 | 高 | P1 | pthread 创建失败、搜索卡死 | 固定 emsdk；真机测试；单线程优先 |
 | R07 | 长将/长捉裁决错误 | 中 | 中 | P2 | 官方棋例通过率 < 90% | 独立规则包；黄金测试；保守判和 |
 | R08 | 性能不达预期 | 中 | 中 | P2 | 4 线程 < 1.0 MNPS | 调构建参数；降低默认线程；明确预期 |
 | R09 | 打包器/Worker 集成困难 | 高 | 中 | P2 | Vite/Next 下 404、pthread 脚本丢失 | 提供示例与 `?url` 方案；CDN 文档 |
-| R10 | wasm 构建不可复现 | 中 | 中 | P2 | 同 commit 产物差异大 | Docker digest；记录工具链；校验和 |
+| R10 | wasm 构建不可复现 | 中 | 中 | P2 | 同 commit 产物差异大 | 固定 emsdk 版本与上游 commit；记录工具链；校验和 |
 | R11 | 网络缓存陈旧/损坏 | 中 | 中 | P2 | 引擎报网络不匹配 | 缓存键含 SHA；清除缓存入口 |
 | R12 | 引擎崩溃/搜索挂起 | 中 | 高 | P1 | 1 秒无 `bestmove` | 看门狗；Worker 重启；棋谱重放 |
 | R13 | 难度设计失衡 | 中 | 低 | P3 | L1 仍太强或随机送死 | 档位循环赛校准 |

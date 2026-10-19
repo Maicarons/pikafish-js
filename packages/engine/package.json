@@ -9,15 +9,20 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./worker-runtime": {
       "types": "./dist/worker-runtime.d.ts",
-      "import": "./dist/worker-runtime.js"
+      "import": "./dist/worker-runtime.js",
+      "default": "./dist/worker-runtime.js"
     },
     "./engine.worker.js": "./dist/engine.worker.js"
   },
   "files": ["dist", "README.md"],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsup && node scripts/build-worker.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",

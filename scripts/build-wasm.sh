@@ -44,6 +44,10 @@ if ! grep -q "pikafish_initialize" "$src_dir/main.cpp"; then
   exit 1
 fi
 
+# Upstream's `SRCS` also matches `*.S`, but the tree's only assembly file is
+# `external/decompress/huf_decompress_amd64.S`, which is compiled only when
+# `ZSTD_ARCH_X86_AMD64` is set (never on wasm32). Compiling `*.cpp` only is
+# therefore equivalent here and avoids handing x86 asm to the wasm assembler.
 mapfile -t source_paths < <(find -L "$src_dir" \
   \( -path '*/universal/*' -o -path '*/temp_builds/*' \) -prune -o \
   -name '*.cpp' -print | sort)

@@ -19,7 +19,7 @@ features:
   - title: 零后端
     details: 引擎、规则与棋盘全部在本地运行。无需服务器、无需账号，对局数据不出浏览器。
   - title: 渐进增强
-    details: 线程+SIMD、单线程+SIMD、单线程无 SIMD 三构建；按浏览器能力自动选择，功能不缺失。
+    details: 线程+SIMD、单线程+SIMD、单线程无 SIMD 三构建，按浏览器能力自动选择；三者都要求页面跨源隔离（COOP/COEP）。
   - title: 面向开发者
     details: 提供 Promise 化的 UCI 封装、流式分析、局面缓存与 TypeScript 类型，可嵌入任意 Web 应用。
   - title: 规则完整
@@ -32,7 +32,7 @@ features:
 
 `pikafish-js` 的目标是成为 **中国象棋领域的 stockfish.js**：把 [Pikafish](https://github.com/official-pikafish/Pikafish) 这颗强力的 UCI 象棋引擎装进浏览器，并提供一套稳定、可复用、对前端友好的 TypeScript API。
 
-项目当前处于**方案设计阶段**。本网站是完整的项目方案，包含技术调研、架构设计、实施路线图与风险清单，而不是最终用户文档。
+项目 v0.1 已实现：规则包、引擎包、演示站与三套 WASM 构建脚本均已落地。本网站既保留完整的技术方案（调研、架构、路线图、风险），也作为使用与部署说明。
 
 <div class="tip custom-block" style="padding-top: 8px">
 

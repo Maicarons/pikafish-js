@@ -13,7 +13,7 @@
 | 3 | 棋盘 UI | **极简自研，参考现有项目代码与素材** | 不把第三方棋盘作为运行时依赖；交互可借鉴，素材需记录来源 |
 | 4 | 规则层 | **自研 TypeScript 规则包** | 按官方规则实现走法、终局、120 个半回合（60 回合）、长将/长捉与中文记谱 |
 | 5 | NNUE 分发 | **运行时下载与随应用打包都支持** | `netUrl` 与 `netData` 两种入口；核心 npm 包默认不带权重 |
-| 6 | 演示部署 | **Vercel + GitHub Pages** | Vercel 用响应头启用多线程；Pages 用 `coi-serviceworker` 并保留单线程回退 |
+| 6 | 演示部署 | **Vercel + GitHub Pages** | Vercel 用响应头启用多线程；Pages 用 `coi-serviceworker` 注入同样的头；跨源隔离是三构建的共同前提 |
 | 7 | 构建矩阵 | **三构建：线程+SIMD / 单线程+SIMD / 单线程无 SIMD** | 覆盖隔离页面、普通静态页与不支持 SIMD 的浏览器；CI 与测试矩阵相应扩大 |
 | 8 | v0.1 范围 | **人机对弈 + 分析 + 7 档难度** | 不做联机、开局库、残局库；先把引擎、规则与棋盘打磨好 |
 
@@ -91,7 +91,7 @@ await Pikafish.create({ jsUrl, wasmUrl, netData, netSha256: '<sha256>' })
 | GitHub Pages | `coi-serviceworker` | SW 注入头；首次刷新 | 文档站、镜像演示、Release 入口 |
 
 - Vercel 与 Pages 使用同一份前端构建；只通过 `DOCS_BASE` / `PUBLIC_NET_URL` 等环境变量区分。
-- 两个站点都必须提供“单线程模式”入口；不能把多线程当作唯一可用路径。
+- 两个站点都以跨源隔离为前提（Vercel 响应头 / Pages Service Worker），并提供 `single-*` 单线程构建入口；不把多线程当作唯一可用路径。
 
 ### 4.4 极简 UI
 

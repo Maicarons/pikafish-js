@@ -5,16 +5,22 @@
 > 范围：Stockfish 的浏览器化经验、Pikafish 上游构建、三构建、Worker/pthread、NNUE 双入口、缓存、COOP/COEP 与 Vercel/GitHub Pages 双部署  
 > 原则：能在一手来源核实的事实与“设计推断”分开写；没有上下文的性能数字不作为承诺
 
+> **实施期更正（重要）**：本文调研时假设“未隔离时可自动降级到单线程、无需 `SharedArrayBuffer`”。
+> 实现后确认这**不成立**：上游 `ThreadPool` 通过 `thread_native.h` 调用 `pthread_create` 创建主搜索线程，
+> 因此带 `-pthread` 编译的任何构建（含 `single-*`）都需要 `SharedArrayBuffer`，即页面必须跨源隔离。
+> `single-*` 的含义是“引擎 1 线程 + 较小堆上限”，而非“无需隔离”。缺失隔离时能力探测直接抛
+> `BUILD_UNAVAILABLE`。以[系统架构](/plan/architecture)第 4、14 节为准。
+
 ## 0. 结论先行
 
 | 问题 | 结论 | 依据 |
 | --- | --- | --- |
 | 能不能在浏览器跑完整 Pikafish | **能**，已有可工作的参考实现：662 KB wasm + 约 50 MB 网络，4 线程 Chromium 约 1.4 MNPS | `brianhliou/pikafish-wasm` |
 | 要不要自己写引擎 | **不要**。编译官方 C++，固定 commit + 最小 patch | 上游 Makefile 已支持 `wasm32` |
-| 构建几个版本 | **三个**：线程+SIMD、单线程+SIMD、单线程无 SIMD | 覆盖隔离页、普通静态页、旧 Safari/Android |
+| 构建几个版本 | **三个**：线程+SIMD、单线程+SIMD、单线程无 SIMD | 覆盖多线程桌面、单线程/低内存设备、无 SIMD 的旧浏览器 |
 | 引擎放哪里 | 专用 Worker；pthread 再派生 Worker | Emscripten pthread 模型 |
 | 网络怎么发 | **核心包不带权重**；支持 `netUrl` 下载缓存与 `netData` 随应用打包 | 体积 + 分发条件 |
-| 多线程怎么启用 | 页面必须 `crossOriginIsolated` 且 `SharedArrayBuffer` 可用；否则自动单线程 | 浏览器安全模型 |
+| 多线程怎么启用 | 页面必须 `crossOriginIsolated` 且 `SharedArrayBuffer` 可用；**任何构建都以此为硬前提**（见顶部更正） | 浏览器安全模型 |
 | 部署在哪 | **Vercel 主站**直接设 COOP/COEP；**GitHub Pages 镜像**用 `coi-serviceworker` | 两套托管能力不同 |
 | Stockfish 经验能不能照搬 | 架构可以借鉴；LICENSE 兼容，但仍优先自研，避免把宿主适配绑死 | 许可证 + 可维护性 |
 | 最大风险 | 不是“跑不起来”，而是**首次 50 MB 加载、移动端内存、线程降级、非法输入导致 Worker 退出** | 参考实现 + 源码 |
@@ -127,7 +133,7 @@ LDFLAGS  += -pthread -sINITIAL_MEMORY=64MB -sALLOW_MEMORY_GROWTH -sSTACK_SIZE=3M
 | 产物 | 线程 | SIMD | 适用环境 | v0.1 |
 | --- | --- | --- | --- | --- |
 | `pikafish-threads-simd` | pthread | 128-bit | 跨源隔离页面 | 默认高性能 |
-| `pikafish-single-simd` | 无 | 128-bit | 普通静态页面 | 回退 |
+| `pikafish-single-simd` | 无 | 128-bit | 跨源隔离的静态页面 | 单线程、较小堆上限 |
 | `pikafish-single-nosimd` | 无 | 无 | Safari 15.2–16.3、旧 Android | 兼容层 |
 
 推荐基线：**Chrome/Edge 91+、Firefox 89+、Safari 16.4+**（支持 WASM SIMD）。无 SIMD 构建覆盖更老的浏览器，但不承诺 NPS。
@@ -259,7 +265,7 @@ Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
 ```
 
-没有这两个头，`crossOriginIsolated` 为 `false`，只能走单线程。
+没有这两个头，`crossOriginIsolated` 为 `false`，引擎无法启动（`pthread_create` 会失败），能力探测直接抛 `BUILD_UNAVAILABLE`。
 
 ### 6.2 双部署
 
@@ -286,7 +292,7 @@ Cross-Origin-Embedder-Policy: require-corp
 - 必须同源加载，不能从 CDN 引用；
 - 所有跨源资源必须带 CORS/CORP。
 
-如果 `coi-serviceworker` 失败，页面自动切到单线程，不阻塞使用。两个站点都保留“单线程模式”入口。
+如果 `coi-serviceworker` 失败，页面会明确报告“需要跨源隔离”；两个站点同时提供 `threads-simd` 与 `single-*` 构建入口。
 
 ### 6.3 跨源资源与 COOP 副作用
 

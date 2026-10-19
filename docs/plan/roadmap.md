@@ -2,6 +2,24 @@
 
 > 关联：[方案总览](/plan/overview) · [系统架构](/plan/architecture) · [风险与对策](/plan/risks)
 
+## 0. 当前实现状态（v0.1）
+
+本路线图是制定时的计划。仓库当前已完成到如下程度，尚未完成的项在正文中标注：
+
+| 里程碑 | 状态 | 说明 |
+| --- | --- | --- |
+| M0 方案与脚手架 | ✅ 完成 | 文档站、`engine.json`、许可证与来源说明齐备 |
+| M1 WASM 构建 PoC | 🟡 脚本就绪，产物由 CI 产出 | `scripts/build-wasm.sh` 三构建可复现；本仓库不提交 wasm/nnue |
+| M2 核心 API | ✅ 完成 | `pikafish-js` 包：`analyze/play/stop/dispose`、能力探测、缓存、错误码 |
+| M3 规则与裁决 | 🟡 主体完成 | FEN、走法、将死/困毙/限着/重复/子力不足、中文记谱；长捉分类器留待 v0.2 |
+| M4 棋盘与演示 | ✅ 完成 | SVG 棋盘、7 档难度、分析、提示、悔棋、双部署配置 |
+| M5 稳定化 | 🟡 部分 | 单测与类型检查通过；跨浏览器矩阵与基准待 CI/真机执行 |
+| M6 发布 | 🟡 待触发 | `release.yml` 在 `v*` tag 上打包三构建并创建 Release |
+
+> **关键实现差异**：Pikafish 的 `ThreadPool` 至少需要一个 pthread，因此**三套构建都要求页面跨源隔离**
+> （COOP/COEP + `SharedArrayBuffer`）。原计划中的“无隔离时自动降级到单线程”在技术上不可行；
+> `single-*` 构建表示引擎单线程、堆更小，而不是不需要隔离。详见[系统架构](/plan/architecture)第 4、14 节。
+
 ## 1. 总体节奏
 
 | 阶段 | 周期 | 目标 | 可演示成果 |
@@ -53,7 +71,7 @@
 | # | 任务 | 产出 | 验收 |
 | --- | --- | --- | --- |
 | M1-1 | 固定上游 | submodule + commit + patch | 可重复 checkout |
-| M1-2 | Docker 构建脚本 | `scripts/build-wasm.sh` | 一条命令产出 wasm/js |
+| M1-2 | 构建脚本 | `scripts/build-wasm.sh` | 一条命令产出 wasm/js |
 | M1-3 | 三构建 | threads-simd / single-simd / single-nosimd | 三个 wasm 均可加载 |
 | M1-4 | Worker 最小宿主 | `demo/poc.html` | `uci` 返回选项列表 |
 | M1-5 | UCI 冒烟 | `isready`、`position`、`go depth 12` | 返回合法 `bestmove` |
@@ -70,7 +88,7 @@
 - 连续 10 局无崩溃；`stop` 响应 ≤ 100 ms。
 - 能解释并复现“无 COOP/COEP 时多线程不可用”的行为。
 
-> M1 是项目最大的技术不确定性来源。若构建无法稳定，立即触发“单线程优先”预案：先发布单线程版本，多线程作为增强。
+> M1 是项目最大的技术不确定性来源。若多线程在移动端内存上不稳定，优先采用 `single-simd`（单线程 + 较小堆上限）发布；它同样要求跨源隔离。
 
 ---
 
@@ -195,8 +213,8 @@
 
 | 工作流 | 触发 | 内容 | 时长目标 |
 | --- | --- | --- | --- |
-| `docs.yml` | push main / 手动 | 构建并部署 VitePress 到 GitHub Pages | < 3 分钟 |
-| `ci.yml` | PR / push main | lint、typecheck、单测、三构建 wasm、Playwright 冒烟 | < 15 分钟 |
+| `pages.yml` | push main / 手动 | 构建三构建 wasm，部署演示站（`/`）+ 文档（`/docs/`）到 GitHub Pages | < 15 分钟 |
+| `ci.yml` | PR / push main | typecheck、单测、构建（不依赖 wasm 产物） | < 5 分钟 |
 | `bench.yml` | 手动 / 每周 | 固定局面基准、内存、产物大小 | < 20 分钟 |
 | `release.yml` | tag `v*` | 全量测试、打包、npm 发布、GitHub Release | < 20 分钟 |
 
@@ -221,8 +239,8 @@ jobs:
         target: [threads-simd, single-simd, single-nosimd]
     steps:
       - checkout（含 submodule）
-      - 缓存 Docker/emsdk 层
-      - ./scripts/build-wasm.sh --target ${{ matrix.target }}
+      - 缓存 setup-emsdk 层
+      - npm run build:wasm
       - 上传 wasm/js 产物（供 e2e 使用）
 
   e2e:
@@ -235,7 +253,7 @@ jobs:
 
 - **路径过滤**：只有 `upstream/`、`patches/`、`scripts/build-wasm.sh` 变化时才重建 wasm；其余 PR 复用缓存产物。
 - **缓存策略**：emsdk Docker 镜像与 Emscripten 缓存目录；wasm 产物按 commit + patch 哈希 + target 缓存。
-- **测试服务器**：必须同时提供“带 COOP/COEP”和“不带”两个路径，覆盖线程与降级；无 SIMD 构建用 Chromium 的禁用 SIMD 启动参数或真机验证。
+- **测试服务器**：必须覆盖“带 COOP/COEP”（线程与单线程构建）和“不带”（应明确报 `BUILD_UNAVAILABLE`）两类页面；无 SIMD 构建用 Chromium 的禁用 SIMD 启动参数或真机验证。
 
 ### 4.3 基准工作流
 
@@ -345,7 +363,7 @@ jobs:
 | 官方网络 | 评估 | 许可/更新 | 固定 SHA；自托管 |
 | GitHub Actions | CI | 额度/排队 | 本地脚本可复现 |
 | Vercel | 主演示 | 平台配额/构建配置 | GitHub Pages 镜像 |
-| GitHub Pages | 文档与镜像 | 无响应头 | 单线程 / Vercel |
+| GitHub Pages | 文档与镜像 | 无响应头 | 用 `coi-serviceworker` 注入 COOP/COEP |
 
 ## 10. 首两周执行清单
 

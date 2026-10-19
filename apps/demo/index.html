@@ -23,7 +23,8 @@
             }
           })
           .catch(function () {
-            // Single-thread fallback still works without isolation.
+            // Refresh the page if the worker could not take control; the
+            // engine will report a clear error instead of silently degrading.
           });
         navigator.serviceWorker.addEventListener('controllerchange', function () {
           if (!sessionStorage.getItem('pikafish-coi-reloaded')) {
