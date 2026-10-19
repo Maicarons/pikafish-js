@@ -43,6 +43,8 @@ export default defineConfig({
   base,
   cleanUrls: false,
   head: [
+    // VitePress does not rewrite `head` URLs with `base`, so spell it out.
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}favicon.svg` }],
     ['meta', { name: 'theme-color', content: '#b91c1c' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: 'pikafish-js · 浏览器里的象棋引擎' }],

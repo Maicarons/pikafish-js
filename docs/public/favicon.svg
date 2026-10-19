@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Pikafish 象棋">
+  <!-- Keep in sync with apps/demo/public/favicon.svg -->
+  <rect width="32" height="32" rx="7" fill="#b91c1c" />
+  <circle cx="16" cy="16" r="10.5" fill="#f7efdc" />
+  <circle cx="16" cy="16" r="10.5" fill="none" stroke="#b91c1c" stroke-width="2" />
+  <circle cx="16" cy="16" r="6.6" fill="none" stroke="#b91c1c" stroke-width="1.6" />
+  <circle cx="16" cy="16" r="2.3" fill="#b91c1c" />
+</svg>
