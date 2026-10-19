@@ -5,8 +5,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        先查[常见问题](https://github.com/official-pikafish/pikafish-js/blob/main/docs/guide/faq.md)与
-        [部署指南](https://github.com/official-pikafish/pikafish-js/blob/main/docs/guide/deployment.md)，
+        先查[常见问题](https://github.com/Maicarons/pikafish-js/blob/main/docs/guide/faq.md)与
+        [部署指南](https://github.com/Maicarons/pikafish-js/blob/main/docs/guide/deployment.md)，
         很多“引擎不启动”其实是缺少跨源隔离。
 
   - type: textarea

@@ -52,7 +52,7 @@ Cross-Origin-Embedder-Policy: require-corp
 4. 构建 rules、engine、demo 与文档，并把文档挂到 `/docs/`。
 
 产物地址默认是
-`https://github.com/official-pikafish/pikafish-js/releases/latest/download`；仓库改名或自建
+`https://github.com/Maicarons/pikafish-js/releases/latest/download`；仓库改名或自建
 镜像时用环境变量覆盖：
 
 ```bash

@@ -5,9 +5,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        先看[快速开始](https://github.com/official-pikafish/pikafish-js/blob/main/docs/guide/getting-started.md)、
-        [API 参考](https://github.com/official-pikafish/pikafish-js/blob/main/docs/guide/api.md)与
-        [常见问题](https://github.com/official-pikafish/pikafish-js/blob/main/docs/guide/faq.md)。
+        先看[快速开始](https://github.com/Maicarons/pikafish-js/blob/main/docs/guide/getting-started.md)、
+        [API 参考](https://github.com/Maicarons/pikafish-js/blob/main/docs/guide/api.md)与
+        [常见问题](https://github.com/Maicarons/pikafish-js/blob/main/docs/guide/faq.md)。
         能复现的缺陷请改用“缺陷报告”模板。
 
   - type: textarea

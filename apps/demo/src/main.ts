@@ -220,7 +220,7 @@ app.innerHTML = `
     <footer class="footer">
       <span>Pikafish WebAssembly · 浏览器内推理，不发送棋局数据</span>
       <span class="footer-links">
-        <a href="https://github.com/official-pikafish/pikafish-js" target="_blank" rel="noreferrer">项目源码</a>
+        <a href="https://github.com/Maicarons/pikafish-js" target="_blank" rel="noreferrer">项目源码</a>
         <a href="https://github.com/official-pikafish/Pikafish" target="_blank" rel="noreferrer">上游引擎</a>
         <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noreferrer">AGPL-3.0</a>
         <a href="bench.html">基准测试</a>

@@ -20,7 +20,7 @@ const args = parseArgs(process.argv.slice(2));
 const base = (
   args.url ??
   process.env.PIKAFISH_WASM_URL ??
-  'https://github.com/official-pikafish/pikafish-js/releases/latest/download'
+  'https://github.com/Maicarons/pikafish-js/releases/latest/download'
 ).replace(/\/+$/, '');
 
 console.log(`Fetching WASM assets from ${base}`);

@@ -77,6 +77,10 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
+        with:
+          # A brand new repository has Pages turned off; this creates the site
+          # instead of failing the first deploy.
+          enablement: true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
