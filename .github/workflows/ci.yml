@@ -12,6 +12,7 @@ concurrency:
 
 jobs:
   verify:
+    name: Lint, typecheck, unit tests, build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -26,14 +27,143 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
       - name: Typecheck
         run: npm run typecheck
 
       - name: Test
         run: npm run test
 
-      - name: Build packages and demo (WASM assets fetched in Pages workflow)
+      - name: Build packages and demo
         run: npm run build
 
       - name: Build docs
         run: npm run docs:build
+
+  changes:
+    # The WASM build needs Emscripten and about ten minutes; the browser matrix
+    # needs the WASM build. Both are skipped on pull requests that cannot affect
+    # the engine, so ordinary documentation or demo-copy changes stay fast.
+    name: Decide whether the engine jobs are needed
+    runs-on: ubuntu-latest
+    outputs:
+      engine: ${{ steps.filter.outputs.engine }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Filter changed paths
+        id: filter
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "engine=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --quiet "origin/${{ github.base_ref }}...HEAD" -- \
+              packages apps scripts patches engine.json package.json \
+              package-lock.json playwright.config.ts tsconfig.e2e.json \
+              .github/workflows/ci.yml; then
+            echo "engine=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "engine=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  wasm:
+    name: Build the three WASM variants
+    needs: changes
+    if: needs.changes.outputs.engine == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Setup Emscripten 3.1.74
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.74
+          actions-cache-folder: emsdk-cache
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download pinned NNUE weights
+        run: npm run fetch:net
+
+      - name: Build WASM (threads+SIMD, single+SIMD, single+no-SIMD)
+        run: npm run build:wasm
+
+      - name: Package release assets
+        run: npm run package:wasm
+
+      - name: Check artefact sizes
+        run: node scripts/check-size.mjs
+
+      - name: Assemble demo engine assets
+        run: npm run assemble:demo
+
+      - name: Upload demo engine assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: pikafish-engine-assets
+          path: apps/demo/public/engine
+          retention-days: 7
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: pikafish-wasm-release
+          path: dist/release
+          retention-days: 7
+
+  e2e:
+    name: End-to-end (Chromium, Firefox, WebKit)
+    needs: wasm
+    if: needs.changes.outputs.engine == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download demo engine assets
+        uses: actions/download-artifact@v4
+        with:
+          name: pikafish-engine-assets
+          path: apps/demo/public/engine
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Run the browser suite
+        run: npm run test:e2e
+
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7

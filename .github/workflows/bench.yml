@@ -1,0 +1,97 @@
+name: Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      movetime:
+        description: Search time per configuration in milliseconds
+        required: false
+        default: '3000'
+  schedule:
+    # Weekly, so a performance regression shows up without anyone running it.
+    - cron: '17 4 * * 1'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: bench
+  cancel-in-progress: false
+
+jobs:
+  bench:
+    name: Run the in-browser benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Setup Emscripten 3.1.74
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.74
+          actions-cache-folder: emsdk-cache
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download pinned NNUE weights
+        run: npm run fetch:net
+
+      - name: Build WASM
+        run: npm run build:wasm
+
+      - name: Package release assets
+        run: npm run package:wasm
+
+      - name: Assemble demo engine assets
+        run: npm run assemble:demo
+
+      - name: Build the demo
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Fetch the previous report as the baseline
+        # Numbers only mean something next to an earlier run on the same runner
+        # image, so the baseline is the last successful run of this workflow
+        # rather than a table committed from someone's laptop.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=$(gh run list --workflow=bench.yml --status=success \
+            --limit=1 --json databaseId --jq '.[0].databaseId')
+          if [ -n "$run_id" ]; then
+            gh run download "$run_id" -n bench-report -D bench-prev
+          fi
+
+      - name: Run the benchmark
+        env:
+          MOVETIME: ${{ github.event.inputs.movetime || '3000' }}
+        run: |
+          baseline=""
+          if [ -f bench-prev/bench.json ]; then
+            baseline="--baseline bench-prev/bench.json"
+          else
+            echo "No previous report: this run only records a new baseline."
+          fi
+          node scripts/bench.mjs --movetime "$MOVETIME" \
+            --out bench-results/bench.json $baseline
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-report
+          path: bench-results/
+          retention-days: 90
