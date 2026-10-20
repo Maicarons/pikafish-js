@@ -90,6 +90,8 @@ bestmove ...
 
 - **`git clone` 失败或拉不到 `upstream`**：kernel 的 Internet 必须是开的
   （`kernel-metadata.json` 里 `enable_internet: true`）。
+- **缺 `zstandard`**：Kaggle 镜像是 Python 3.11，标准库没有 zstd；`run.py` 一开始
+  会自己 `pip install zstandard`，日志里有 `zstd: installing zstandard` 就对了。
 - **`net mismatch: … bytes / …`**：下载被截断；删掉 `.part` 重跑即可，脚本不会
   把校验失败的文件留在原位。
 - **`expected exactly one L1 = 1024`**：上游源码版本不对，`nnue/nnue_architecture.h`

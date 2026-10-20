@@ -578,11 +578,25 @@ def stage_export(ckpt: Path, student_tool: Path, student_engine: Path | None, fe
     mark("export")
 
 
+def ensure_zstd() -> None:
+    """`nnue_io` needs a zstd codec to read the teacher and write the student.
+
+    Kaggle's image is Python 3.11, where the standard library has no zstd, and
+    `zstandard` is not installed; it is a few seconds of pip.
+    """
+    for probe in ("import zstandard", "from compression import zstd"):
+        if subprocess.run([PY, "-c", probe], capture_output=True).returncode == 0:
+            return
+    print("zstd: installing zstandard", flush=True)
+    run([PY, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", "zstandard"])
+
+
 def main() -> int:
     started = time.time()
     global REPO, PYDIR, NET
 
     WORK.mkdir(parents=True, exist_ok=True)
+    ensure_zstd()
     REPO = ensure_repo(REPO)
     PYDIR = REPO / "training" / "python"
     ensure_sources(REPO)
