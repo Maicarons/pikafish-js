@@ -25,13 +25,12 @@
     Use `kaggle auth login` instead if you would rather authenticate through the
     browser; then this wrapper is not needed.
 #>
-[CmdletBinding()]
-param(
-    [Parameter(ValueFromRemainingArguments = $true)]
-    [string[]] $Command
-)
-
+# No `[CmdletBinding()]` and no declared parameters on purpose: an advanced
+# script owns the common parameters, so `-p training/kaggle` would bind to
+# `-PipelineVariable` and never reach the CLI.  `$args` forwards everything
+# exactly as typed.
 $ErrorActionPreference = 'Stop'
+$Command = $args
 
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $envFile = Join-Path $repoRoot '.env'
