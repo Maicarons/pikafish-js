@@ -1,10 +1,10 @@
 {
-  "_note": "This file travels with the kernel. Kaggle runs a script with no arguments and no environment variables, so these are the knobs. The first run is about an hour; raise PIKAFISH_STEPS to 200000 for the real run.",
+  "_note": "These knobs are read from this file when it sits next to run.py, and otherwise from the copy in the cloned repository. The first run is about an hour; raise PIKAFISH_STEPS to 200000 for the real run. PIKAFISH_TRAIN_MINUTES caps the training stage so that export always runs inside the 12 hour session.",
   "PIKAFISH_HALF": 512,
   "PIKAFISH_GEN_MINUTES": 12,
   "PIKAFISH_STEPS": 20000,
   "PIKAFISH_BATCH": 1024,
   "PIKAFISH_LR": 0.001,
   "PIKAFISH_SAVE_EVERY": 2000,
-  "PIKAFISH_TRAIN_MINUTES": 0
+  "PIKAFISH_TRAIN_MINUTES": 540
 }

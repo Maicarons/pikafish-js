@@ -21,8 +21,11 @@
 
 ## 2. 旋钮在 `kernel-params.json`
 
-Kaggle 运行脚本时既不给参数也不给环境变量，所以旋钮放在随 kernel 上传的
-`kernel-params.json` 里；环境变量仍然优先，本机冒烟就是靠这个覆盖的。
+Kaggle 运行脚本时既不给参数也不给环境变量，所以旋钮放在 `kernel-params.json` 里。
+查找顺序是：`run.py` 同目录 → 当前工作目录 → **克隆下来的仓库里的副本**。最后一条
+才是实际生效的那条，因为 Kaggle 并不保证把上传的其它文件放在脚本旁边；环境变量始终
+优先，本机冒烟就是靠这个覆盖的。找不到任何一份时用内置默认值，日志会写
+`params none, built-in defaults`。
 
 | 键 | 含义 | 首次运行值 |
 | --- | --- | --- |
@@ -31,10 +34,13 @@ Kaggle 运行脚本时既不给参数也不给环境变量，所以旋钮放在�
 | `PIKAFISH_STEPS` | 训练步数 | 20000 |
 | `PIKAFISH_BATCH` / `PIKAFISH_LR` | 批大小 / 学习率 | 1024 / 0.001 |
 | `PIKAFISH_SAVE_EVERY` | 每多少步落盘（后可 `--resume`） | 2000 |
-| `PIKAFISH_TRAIN_MINUTES` | 到时即停，0 表示不设限 | 0 |
+| `PIKAFISH_TRAIN_MINUTES` | 训练阶段最多跑多久，保证 export 还能执行 | 540 |
 
-改完 `PIKAFISH_STEPS` 再 push 一次就是长跑：200000 步约 3–4 小时，加上构建与生成
-在 12 小时上限内。
+改完 `PIKAFISH_STEPS` 再 push 一次就是长跑：200000 步，`TRAIN_MINUTES` 会兜住 12 小时
+上限，先落盘再导出。
+
+Python 阶段都用 `-u` 启动，日志会实时出现；否则 Kaggle 按块缓冲，训练期间看不到
+任何输出。
 
 ## 3. 启动与取回
 

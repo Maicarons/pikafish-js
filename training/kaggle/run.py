@@ -61,24 +61,27 @@ import urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-PARAMS_FILE = HERE / "kernel-params.json"
 REPO_URL = "https://github.com/Maicarons/pikafish-js.git"
+PARAM_FILES = (HERE / "kernel-params.json", Path.cwd() / "kernel-params.json")
 
 
-def _read_params() -> dict[str, str]:
-    """`kernel-params.json`, which travels with the kernel.
+def _read_params(paths) -> tuple[dict[str, str], Path | None]:
+    """The first `kernel-params.json` that parses, and where it came from.
 
-    Kaggle runs a script without arguments and gives it no way to set
-    environment variables, so the knobs have to come from a file in the upload.
+    Kaggle runs the script from a directory of its own choosing and does not
+    necessarily copy the kernel's other files next to it, so the knobs are also
+    looked for in the repository, which `main` provides once it is cloned.
     """
-    try:
-        data = json.loads(PARAMS_FILE.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
-    return {str(k): str(v) for k, v in data.items() if v is not None}
+    for path in paths:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        return {str(k): str(v) for k, v in data.items() if v is not None}, path
+    return {}, None
 
 
-PARAMS = _read_params()
+PARAMS, PARAMS_FROM = _read_params(PARAM_FILES)
 
 
 def knob(name: str, default: str) -> str:
@@ -95,14 +98,30 @@ def _default_work() -> Path:
 REPO = Path(knob("PIKAFISH_REPO", ".")).resolve()
 WORK = Path(knob("PIKAFISH_WORK", str(_default_work()))).resolve()
 NET = Path(knob("PIKAFISH_NET", str(REPO / "assets" / "pikafish.nnue"))).resolve()
-HALF = int(knob("PIKAFISH_HALF", "512"))
-STEPS = knob("PIKAFISH_STEPS", "200000")
-GEN_MINUTES = knob("PIKAFISH_GEN_MINUTES", "20")
-BATCH = knob("PIKAFISH_BATCH", "1024")
-LR = knob("PIKAFISH_LR", "1e-3")
-ARCH = knob("PIKAFISH_ARCH", "x86-64")
-FORCE = knob("PIKAFISH_FORCE", "") == "1"
-STAGES = knob("PIKAFISH_STAGES", "build positions label shard train export").split()
+
+
+def refresh_knobs() -> None:
+    """Reads the knobs, which may only be visible once the repository is there."""
+    global HALF, STEPS, GEN_MINUTES, BATCH, LR, ARCH, FORCE, STAGES
+    HALF = int(knob("PIKAFISH_HALF", "512"))
+    STEPS = knob("PIKAFISH_STEPS", "200000")
+    GEN_MINUTES = knob("PIKAFISH_GEN_MINUTES", "20")
+    BATCH = knob("PIKAFISH_BATCH", "1024")
+    LR = knob("PIKAFISH_LR", "1e-3")
+    ARCH = knob("PIKAFISH_ARCH", "x86-64")
+    FORCE = knob("PIKAFISH_FORCE", "") == "1"
+    STAGES = knob("PIKAFISH_STAGES", "build positions label shard train export").split()
+
+
+HALF = 512
+STEPS = "200000"
+GEN_MINUTES = "20"
+BATCH = "1024"
+LR = "1e-3"
+ARCH = "x86-64"
+FORCE = False
+STAGES: list[str] = []
+refresh_knobs()
 
 PY = sys.executable
 PYDIR = REPO / "training" / "python"
@@ -414,6 +433,7 @@ def stage_positions(engine: Path) -> Path:
         run(
             [
                 PY,
+                "-u",
                 PYDIR / "selfplay.py",
                 "--engine",
                 engine,
@@ -467,6 +487,7 @@ def stage_shard(dump: Path) -> Path:
     run(
         [
             PY,
+            "-u",
             "-c",
             "import sys; sys.path.insert(0, r'%s');"
             "from reader import read_dump, write_shards;"
@@ -482,6 +503,7 @@ def stage_train(shards: Path) -> Path:
     ckpt = WORK / "student.pt"
     args = [
         PY,
+        "-u",
         PYDIR / "train.py",
         "--shards",
         shards,
@@ -504,7 +526,7 @@ def stage_train(shards: Path) -> Path:
         "--log-every",
         "500",
         "--max-minutes",
-        os.environ.get("PIKAFISH_TRAIN_MINUTES", "0"),
+        knob("PIKAFISH_TRAIN_MINUTES", "600"),
     ]
     if ckpt.exists() and not FORCE:
         args += ["--resume", ckpt]
@@ -545,6 +567,7 @@ def stage_export(ckpt: Path, student_tool: Path, student_engine: Path | None, fe
     net = WORK / "student.nnue"
     args = [
         PY,
+        "-u",
         PYDIR / "export_student.py",
         "--checkpoint",
         ckpt,
@@ -593,15 +616,27 @@ def ensure_zstd() -> None:
 
 def main() -> int:
     started = time.time()
-    global REPO, PYDIR, NET
+    global REPO, PYDIR, NET, PARAMS, PARAMS_FROM
 
     WORK.mkdir(parents=True, exist_ok=True)
     ensure_zstd()
     REPO = ensure_repo(REPO)
     PYDIR = REPO / "training" / "python"
+
+    if PARAMS_FROM is None:
+        # The kernel's own copy is not always next to the script; the repository
+        # always has one, so this is the copy that counts on Kaggle.
+        PARAMS, PARAMS_FROM = _read_params([REPO / "training" / "kaggle" / "kernel-params.json"])
+        refresh_knobs()
+
     ensure_sources(REPO)
     NET = ensure_net(REPO)
-    print(f"repo {REPO}\nwork {WORK}\nnet  {NET}\nhalf {HALF}\nstages {' '.join(STAGES)}")
+
+    print(f"params {PARAMS_FROM or 'none, built-in defaults'}")
+    print(
+        f"repo {REPO}\nwork {WORK}\nnet  {NET}\nhalf {HALF}\n"
+        f"steps {STEPS}\ngen {GEN_MINUTES} min\nbatch {BATCH} lr {LR}\nstages {' '.join(STAGES)}"
+    )
 
     build_if_needed()
     engine, teacher_tool, student_tool, student_engine = resolve_paths()
