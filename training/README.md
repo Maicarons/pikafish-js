@@ -127,20 +127,25 @@ python training/python/test_bucket.py
 ## Kaggle
 
 配额是每周约 30 GPU 小时（2×T4 或 1×P100，单次 12 小时）。`run.py` 分六个阶段，
-每个阶段完成后在 `PIKAFISH_WORK` 留一个 `.阶段.done` 标记，被 12 小时上限打断后
-直接重跑即可续训（训练阶段会用 `--resume` 读回 `student.pt`）。
+每个阶段完成后在 `PIKAFISH_WORK` 留一个 `.阶段.done` 标记，同一会话内重跑会跳过
+已完成的阶段（训练阶段用 `--resume` 读回 `student.pt`）。每次 push 都是新会话，
+`/kaggle/working` 从空开始，所以单次步数要控制在 12 小时以内。
+
+不需要数据集：kernel 只上传 `training/kaggle/`，`run.py` 会自己克隆仓库、按
+`engine.json` 浅取钉住的上游源码、下载并校验教师网络。旋钮放在随 kernel 上传的
+`kernel-params.json` 里（Kaggle 不给脚本传参数或环境变量）。
 
 ```bash
-# 令牌只放在本机 ~/.kaggle/kaggle.json，或环境变量 KAGGLE_USERNAME / KAGGLE_KEY
-kaggle datasets create -p training/data        # 数据集：仓库 + 教师网络
-kaggle kernels push -p training/kaggle         # 运行 kernel
+./training/kaggle/kaggle.ps1 quota                # 读配额，不消耗
+./training/kaggle/kaggle.ps1 kernels push -p training/kaggle
+./training/kaggle/kaggle.ps1 kernels output mccarron/pikafish-js-distill -p training/out/kaggle
 ```
 
-主要环境变量：`PIKAFISH_REPO`、`PIKAFISH_WORK`、`PIKAFISH_NET`、`PIKAFISH_HALF`、
-`PIKAFISH_STEPS`、`PIKAFISH_GEN_MINUTES`、`PIKAFISH_STAGES`（只跑其中几个阶段）、
-`PIKAFISH_FORCE=1`（忽略标记重跑）。本机冒烟时可以配合 `PIKAFISH_GEN_GAMES`、
-`PIKAFISH_ENGINE`、`PIKAFISH_TEACHER_TOOL`、`PIKAFISH_STUDENT_TOOL` 指向已经编好的
-二进制，跳过 `build` 阶段。
+详见 `kaggle/README.md`。主要变量：`PIKAFISH_REPO`、`PIKAFISH_WORK`、`PIKAFISH_NET`、
+`PIKAFISH_HALF`、`PIKAFISH_STEPS`、`PIKAFISH_GEN_MINUTES`、`PIKAFISH_STAGES`（只跑其中
+几个阶段）、`PIKAFISH_FORCE=1`（忽略标记重跑）。本机冒烟时可以配合
+`PIKAFISH_GEN_GAMES`、`PIKAFISH_ENGINE`、`PIKAFISH_TEACHER_TOOL`、
+`PIKAFISH_STUDENT_TOOL` 指向已经编好的二进制，跳过 `build` 阶段。
 
 本机实测耗时（150 局/配方，200 步训练）：造局面 90 秒、标注 1 秒、分片 1 秒、
 训练 9 秒、导出+复核 24 秒。真正的时间花在标注与训练：教师标注约 22.6k 局面/秒

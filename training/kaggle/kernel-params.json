@@ -1,0 +1,10 @@
+{
+  "_note": "This file travels with the kernel. Kaggle runs a script with no arguments and no environment variables, so these are the knobs. The first run is about an hour; raise PIKAFISH_STEPS to 200000 for the real run.",
+  "PIKAFISH_HALF": 512,
+  "PIKAFISH_GEN_MINUTES": 12,
+  "PIKAFISH_STEPS": 20000,
+  "PIKAFISH_BATCH": 1024,
+  "PIKAFISH_LR": 0.001,
+  "PIKAFISH_SAVE_EVERY": 2000,
+  "PIKAFISH_TRAIN_MINUTES": 0
+}

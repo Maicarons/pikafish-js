@@ -1,12 +1,22 @@
-"""Kaggle entry point: build, make positions, label, shard, train, export.
+"""Kaggle entry point: bootstrap, build, make positions, label, shard, train, export.
 
-Six stages, each skipped once it has a marker in `PIKAFISH_WORK`, so a session
-that hits Kaggle's 12-hour limit can be continued:
+The kernel upload only needs this folder.  Everything else is fetched, so the
+code that runs is the commit you pushed rather than a dataset snapshot:
 
-    build      copy `upstream/src` to the work dir, `make build`, link the dump
-               tool.  A second copy with `L1 = PIKAFISH_HALF` is built when the
-               student is narrower than the teacher, because only an engine of
-               the student's width can load the student's net.
+    repo       `git clone` of the public repository, when it is not already
+               around (locally it is, so this is a no-op)
+    upstream   Pikafish at the commit pinned in `engine.json`, fetched shallow,
+               then `make build` on it
+    net        the teacher net, verified against the size and SHA-256 in
+               `engine.json`
+
+Then six stages, each skipped once it has a marker in `PIKAFISH_WORK`, so a
+session that hits Kaggle's 12-hour limit can be continued:
+
+    build      `make build` and the dump tool.  A second tree with
+               `L1 = PIKAFISH_HALF` is built when the student is narrower than
+               the teacher, because only an engine of the student's width can
+               load the student's net.
     positions  `training/python/selfplay.py` recipes: some games at low strength
                (real play, where the teacher's opinion matters) and some from
                material aimed at each layer-stack bucket.  The stage fails if
@@ -16,9 +26,12 @@ that hits Kaggle's 12-hour limit can be continued:
     shards     `reader.write_shards` turns the dump into `.npz` shards.
     train      `train.py`, warm started from the teacher and resumable.
     export     `export_student.py`: write the `.nnue`, check it against the
-               model, then load it in the half-width engine and bench it.
+               model, then load it in the half-width engine and search with it.
 
-Environment (all optional except the teacher net):
+Knobs live in `kernel-params.json` next to this file (it travels with the kernel,
+since Kaggle gives a script no way to pass environment variables) and can be
+overridden by the environment, which is how the local smoke test works:
+
     PIKAFISH_REPO         repo root; default: the current directory
     PIKAFISH_WORK         scratch and output; default: /kaggle/working/train
     PIKAFISH_NET          teacher net; default: <repo>/assets/pikafish.nnue
@@ -31,36 +44,180 @@ Environment (all optional except the teacher net):
     PIKAFISH_FORCE        1 to redo stages that have a marker
     PIKAFISH_ARCH         engine ARCH; default x86-64
 
-The Kaggle API token is never read here: upload datasets and push kernels with
-the CLI on your own machine, where ~/.kaggle/kaggle.json lives.
+The Kaggle API token is never read here: pushing the kernel is the CLI's job,
+on a machine where `kaggle auth login` has run or `KAGGLE_API_TOKEN` is set.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
 import subprocess
 import sys
 import time
+import urllib.request
 from pathlib import Path
 
-REPO = Path(os.environ.get("PIKAFISH_REPO", ".")).resolve()
-WORK = Path(os.environ.get("PIKAFISH_WORK", "/kaggle/working/train"))
-NET = Path(os.environ.get("PIKAFISH_NET", REPO / "assets" / "pikafish.nnue")).resolve()
-HALF = int(os.environ.get("PIKAFISH_HALF", "512"))
-STEPS = os.environ.get("PIKAFISH_STEPS", "200000")
-GEN_MINUTES = os.environ.get("PIKAFISH_GEN_MINUTES", "20")
-BATCH = os.environ.get("PIKAFISH_BATCH", "1024")
-LR = os.environ.get("PIKAFISH_LR", "1e-3")
-ARCH = os.environ.get("PIKAFISH_ARCH", "x86-64")
-FORCE = os.environ.get("PIKAFISH_FORCE", "") == "1"
-STAGES = os.environ.get(
-    "PIKAFISH_STAGES", "build positions label shard train export"
-).split()
+HERE = Path(__file__).resolve().parent
+PARAMS_FILE = HERE / "kernel-params.json"
+REPO_URL = "https://github.com/Maicarons/pikafish-js.git"
+
+
+def _read_params() -> dict[str, str]:
+    """`kernel-params.json`, which travels with the kernel.
+
+    Kaggle runs a script without arguments and gives it no way to set
+    environment variables, so the knobs have to come from a file in the upload.
+    """
+    try:
+        data = json.loads(PARAMS_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {str(k): str(v) for k, v in data.items() if v is not None}
+
+
+PARAMS = _read_params()
+
+
+def knob(name: str, default: str) -> str:
+    """Environment first (that is how the local smoke test overrides), then the
+    params file, then the default."""
+    return os.environ.get(name) or PARAMS.get(name) or default
+
+
+def _default_work() -> Path:
+    kaggle = Path("/kaggle/working")
+    return kaggle / "train" if kaggle.is_dir() else Path("training/out/kaggle")
+
+
+REPO = Path(knob("PIKAFISH_REPO", ".")).resolve()
+WORK = Path(knob("PIKAFISH_WORK", str(_default_work()))).resolve()
+NET = Path(knob("PIKAFISH_NET", str(REPO / "assets" / "pikafish.nnue"))).resolve()
+HALF = int(knob("PIKAFISH_HALF", "512"))
+STEPS = knob("PIKAFISH_STEPS", "200000")
+GEN_MINUTES = knob("PIKAFISH_GEN_MINUTES", "20")
+BATCH = knob("PIKAFISH_BATCH", "1024")
+LR = knob("PIKAFISH_LR", "1e-3")
+ARCH = knob("PIKAFISH_ARCH", "x86-64")
+FORCE = knob("PIKAFISH_FORCE", "") == "1"
+STAGES = knob("PIKAFISH_STAGES", "build positions label shard train export").split()
 
 PY = sys.executable
 PYDIR = REPO / "training" / "python"
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def engine_json(repo: Path) -> dict:
+    return json.loads((repo / "engine.json").read_text(encoding="utf-8"))
+
+
+def ensure_repo(repo: Path) -> Path:
+    """The repository this script belongs to.
+
+    The Kaggle upload holds only this folder, so the repository is cloned from
+    the pushed branch; locally it is already there and this changes nothing.
+    """
+    if (repo / "training" / "python" / "train.py").is_file():
+        return repo
+
+    dest = WORK / "repo"
+    if not (dest / "training" / "python" / "train.py").is_file():
+        if dest.exists():
+            shutil.rmtree(dest)
+        run(["git", "clone", "--depth", "1", knob("PIKAFISH_REPO_URL", REPO_URL), dest])
+        commit = subprocess.run(
+            ["git", "-C", str(dest), "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        print(f"repo: cloned at {commit}")
+    return dest
+
+
+def ensure_sources(repo: Path) -> None:
+    """Pikafish at the commit pinned in `engine.json`, fetched shallowly.
+
+    The wasm build patches this tree, the native one does not, so a pristine
+    checkout is what the engine and the dump tool are compiled from.
+    """
+    if (repo / "upstream" / "src" / "nnue" / "nnue_architecture.h").is_file():
+        return
+
+    config = engine_json(repo)["upstream"]
+    url, commit = config["repository"], config["commit"]
+    dest = repo / "upstream"
+    dest.mkdir(parents=True, exist_ok=True)
+    if not (dest / ".git").is_dir():
+        run(["git", "init", str(dest)])
+        run(["git", "-C", str(dest), "remote", "add", "origin", url])
+
+    # Asking for one hash keeps the 100 MB of history out of the download;
+    # GitHub serves a reachable commit directly, and a full clone is the
+    # fallback when it does not.
+    fetched = subprocess.run(
+        ["git", "-C", str(dest), "fetch", "--depth", "1", "origin", commit],
+        capture_output=True,
+        text=True,
+    )
+    if fetched.returncode:
+        print(f"fetch of {commit[:12]} failed, cloning the history instead", flush=True)
+        shutil.rmtree(dest)
+        run(["git", "clone", "--filter=blob:none", url, dest])
+    run(["git", "-C", str(dest), "checkout", "--detach", commit])
+
+    got = subprocess.run(
+        ["git", "-C", str(dest), "rev-parse", "HEAD"], capture_output=True, text=True
+    ).stdout.strip()
+    if got != commit:
+        raise SystemExit(f"upstream is at {got or 'nothing'}, expected {commit}")
+    print(f"upstream: {commit[:12]} in {dest}")
+
+
+def ensure_net(repo: Path) -> Path:
+    """The teacher net, verified against the size and hash in `engine.json`."""
+    explicit = os.environ.get("PIKAFISH_NET") or PARAMS.get("PIKAFISH_NET")
+    target = Path(explicit).resolve() if explicit else (repo / "assets" / "pikafish.nnue").resolve()
+    if explicit and target.is_file():
+        print(f"net: {target} (given, {target.stat().st_size} bytes)")
+        return target
+
+    config = engine_json(repo)["net"]
+    size, digest = int(config["size"]), config["sha256"]
+    if target.is_file() and target.stat().st_size == size and sha256_file(target) == digest:
+        print(f"net: {target} verified ({size} bytes)")
+        return target
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    part = target.with_name(target.name + ".part")
+    print(f"net: downloading {config['url']}", flush=True)
+    request = urllib.request.Request(config["url"], headers={"User-Agent": "pikafish-js-distill"})
+    seen = 0
+    with urllib.request.urlopen(request) as response, part.open("wb") as out:
+        while True:
+            chunk = response.read(1 << 20)
+            if not chunk:
+                break
+            out.write(chunk)
+            if out.tell() - seen >= 10 << 20:
+                seen = out.tell()
+                print(f"  {seen / 1e6:.0f} MB", flush=True)
+
+    got_hash, got_size = sha256_file(part), part.stat().st_size
+    if got_size != size or got_hash != digest:
+        part.unlink()
+        raise SystemExit(f"net mismatch: {got_size} bytes / {got_hash}, expected {size} / {digest}")
+    part.replace(target)
+    print(f"net: {target} ({size} bytes)")
+    return target
 
 
 def run(cmd: list[str], cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess:
@@ -149,22 +306,39 @@ def patch_l1(src: Path, half: int) -> None:
     print(f"patched {path} to L1 = {half}")
 
 
+def engine_binary(tree: Path) -> Path:
+    """`pikafish` in a build tree; MinGW names it `.exe`."""
+    for name in ("pikafish", "pikafish.exe"):
+        if (tree / name).exists():
+            return tree / name
+    return tree / "pikafish"
+
+
 def build_engine(tag: str, half: int | None) -> tuple[Path, Path]:
     """Builds one engine tree and its dump tool.  Returns `(engine, tool)`."""
     src = WORK / (f"src-{half}" if half else "src")
     if src.exists():
         shutil.rmtree(src)
     shutil.copytree(REPO / "upstream" / "src", src)
+
+    # `make build` depends on `net`, which runs `../scripts/net.sh`; only `src/`
+    # was copied above, so the script has to be put back too.  With the net
+    # already in the tree, net.sh prints "Exists … skipping download" instead of
+    # fetching another 50 MB.
+    scripts = WORK / "scripts"
+    if not scripts.exists():
+        shutil.copytree(REPO / "upstream" / "scripts", scripts)
+    shutil.copyfile(NET, src / "pikafish.nnue")
+
     for junk in (".build_sha.txt", ".depend", ".build_diffindex.txt"):
         (src / junk).unlink(missing_ok=True)
     if half:
         patch_l1(src, half)
 
     run(["make", "-j", jobs(), "build", f"ARCH={ARCH}"], cwd=src)
-    engine = src / "pikafish"
+    engine = engine_binary(src)
     if not engine.exists():
-        raise SystemExit(f"{engine} was not produced")
-    shutil.copyfile(NET, src / "pikafish.nnue")
+        raise SystemExit(f"{src / 'pikafish'} was not produced")
 
     tool = WORK / (f"pikafish-dump-{half}" if half else "pikafish-dump")
     link_dump_tool(src, tool)
@@ -178,7 +352,9 @@ def resolve_paths() -> tuple[Path, Path, Path, Path]:
     Overridable so a run can reuse an engine built outside this script (a local
     MinGW build, or a previous Kaggle session's work directory).
     """
-    engine = Path(os.environ.get("PIKAFISH_ENGINE", WORK / "src" / "pikafish"))
+    engine = Path(
+        os.environ.get("PIKAFISH_ENGINE", engine_binary(WORK / "src"))
+    )
     teacher_tool = Path(os.environ.get("PIKAFISH_TEACHER_TOOL", WORK / "pikafish-dump"))
     student_tool = Path(
         os.environ.get(
@@ -189,7 +365,7 @@ def resolve_paths() -> tuple[Path, Path, Path, Path]:
     student_engine = Path(
         os.environ.get(
             "PIKAFISH_STUDENT_ENGINE",
-            WORK / (f"src-{HALF}" if HALF != 1024 else "src") / "pikafish",
+            engine_binary(WORK / (f"src-{HALF}" if HALF != 1024 else "src")),
         )
     )
     return engine, teacher_tool, student_tool, student_engine
@@ -404,11 +580,14 @@ def stage_export(ckpt: Path, student_tool: Path, student_engine: Path | None, fe
 
 def main() -> int:
     started = time.time()
+    global REPO, PYDIR, NET
+
     WORK.mkdir(parents=True, exist_ok=True)
+    REPO = ensure_repo(REPO)
+    PYDIR = REPO / "training" / "python"
+    ensure_sources(REPO)
+    NET = ensure_net(REPO)
     print(f"repo {REPO}\nwork {WORK}\nnet  {NET}\nhalf {HALF}\nstages {' '.join(STAGES)}")
-    if not NET.exists():
-        print(f"no teacher net at {NET}", file=sys.stderr)
-        return 2
 
     build_if_needed()
     engine, teacher_tool, student_tool, student_engine = resolve_paths()
