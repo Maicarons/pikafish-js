@@ -1183,22 +1183,25 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// The GitHub Pages shape cannot be isolated on the first visit: the worker
+// registers, takes control and reloads.  Control arrives a moment before that
+// reload, and the reload discards this script, so what has to be waited for is
+// isolation itself rather than `controllerchange` — otherwise a machine where
+// the worker activates just under the deadline shows the error instead of the
+// reloaded, isolated page.
 async function ensureIsolation(): Promise<void> {
   if (crossOriginIsolated) return;
-  const container = navigator.serviceWorker;
-  if (container) {
-    // coi-serviceworker installs on the first visit and reloads once it takes
-    // control; give it a moment before failing.
-    await new Promise<void>((resolve) => {
-      const finish = () => {
-        clearTimeout(timer);
-        container.removeEventListener('controllerchange', finish);
-        resolve();
-      };
-      const timer = setTimeout(finish, 4000);
-      container.addEventListener('controllerchange', finish);
-    });
+
+  // Local, not module level: this function runs from the bootstrap at the top
+  // of the module, before any `const` further down has been initialised.
+  const timeoutMs = 15_000;
+
+  // Without `serviceWorker` no reload is coming, so there is nothing to wait for.
+  const deadline = Date.now() + (navigator.serviceWorker ? timeoutMs : 0);
+  while (!crossOriginIsolated && Date.now() < deadline) {
+    await sleep(100);
   }
+
   if (!crossOriginIsolated) {
     throw new Error(
       '引擎需要跨源隔离（COOP/COEP）。请使用 Vercel 部署，或允许 coi-serviceworker 注册后刷新页面。',
