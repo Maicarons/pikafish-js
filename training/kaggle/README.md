@@ -36,8 +36,8 @@ Kaggle 运行脚本时既不给参数也不给环境变量，所以旋钮放在 
 | `PIKAFISH_SAVE_EVERY` | 每多少步落盘（后可 `--resume`） | 2000 |
 | `PIKAFISH_TRAIN_MINUTES` | 训练阶段最多跑多久，保证 export 还能执行 | 540 |
 
-改完 `PIKAFISH_STEPS` 再 push 一次就是长跑：200000 步，`TRAIN_MINUTES` 会兜住 12 小时
-上限，先落盘再导出。
+改完 `PIKAFISH_STEPS` 再 push 一次就是长跑。实测吞吐 29.7k 局面/秒，200k 步约 2 小时，
+`TRAIN_MINUTES` 只是兜住 12 小时上限。
 
 Python 阶段都用 `-u` 启动，日志会实时出现；否则 Kaggle 按块缓冲，训练期间看不到
 任何输出。
@@ -71,7 +71,7 @@ Python 阶段都用 `-u` 启动，日志会实时出现；否则 Kaggle 按块�
 | positions | 按 `GEN_MINUTES` | 六个配方，见 `../README.md`；缺 bucket 会直接失败 |
 | label | 约 1 分钟 / 百万局面 | 教师标注，22.6k 局面/秒（单线程） |
 | shards | 不到 1 分钟 | |
-| train | 看 `PIKAFISH_STEPS` | 本机 21k 局面/秒；T4 预计 5–15k |
+| train | 看 `PIKAFISH_STEPS` | 本机 21k 局面/秒；Kaggle GPU 实测 **29.7k 局面/秒**（batch 1024），200k 步约 2 小时 |
 | export | 约 1 分钟 | 写盘、回读校验、引擎复核 |
 
 注意每次 push 都是**新的会话**，`/kaggle/working` 从空开始，所以跨会话续训不是
@@ -94,6 +94,12 @@ bestmove ...
 
 ## 6. 常见问题
 
+- **要换参数或会话卡住了**：CLI 没有 cancel 子命令，直接
+  `./training/kaggle/kaggle.ps1 kernels delete mccarron/pikafish-js-distill` 再 `push` 重建；
+  删除会连会话一起结束，比等它跑完快得多。
+- **日志第一段先核对**：`params <路径>` 必须是克隆仓库里的那份，后面跟着
+  `steps` / `gen` / `batch`。这行缺失或写着 `built-in defaults`，说明参数没读到，
+  此时 `steps` 会是 200000——v1 就是这样白跑了 59,500 步。
 - **`git clone` 失败或拉不到 `upstream`**：kernel 的 Internet 必须是开的
   （`kernel-metadata.json` 里 `enable_internet: true`）。
 - **缺 `zstandard`**：Kaggle 镜像是 Python 3.11，标准库没有 zstd；`run.py` 一开始
