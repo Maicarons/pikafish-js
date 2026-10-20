@@ -1,10 +1,10 @@
 {
-  "_note": "These knobs are read from this file when it sits next to run.py, and otherwise from the copy in the cloned repository. The first run is about an hour; raise PIKAFISH_STEPS to 200000 for the real run. PIKAFISH_TRAIN_MINUTES caps the training stage so that export always runs inside the 12 hour session.",
+  "_note": "Read from this file when it sits next to run.py, otherwise from the copy in the cloned repository. The 20k-step run measured 63 cp mean error against the teacher while its training loss implied ~40 cp, so the corpus was too small: this run generates five times the positions and trains six times as long. PIKAFISH_TRAIN_MINUTES caps the training stage so export still runs inside the 12 hour session.",
   "PIKAFISH_HALF": 512,
-  "PIKAFISH_GEN_MINUTES": 12,
-  "PIKAFISH_STEPS": 20000,
+  "PIKAFISH_GEN_MINUTES": 60,
+  "PIKAFISH_STEPS": 120000,
   "PIKAFISH_BATCH": 1024,
   "PIKAFISH_LR": 0.001,
-  "PIKAFISH_SAVE_EVERY": 2000,
+  "PIKAFISH_SAVE_EVERY": 5000,
   "PIKAFISH_TRAIN_MINUTES": 540
 }
