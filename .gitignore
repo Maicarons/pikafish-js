@@ -20,6 +20,16 @@ assets/
 upstream/
 apps/demo/public/engine/
 
+# Training artifacts: datasets, dumps, checkpoints, engine copies and tools
+training/data/
+training/out/
+training/engine/build-*/
+training/engine/pikafish-dump
+training/engine/pikafish-dump.exe
+training/engine/pikafish-dump-*
+training/engine/*.bin
+__pycache__/
+
 # Local files
 .env
 .env.*
