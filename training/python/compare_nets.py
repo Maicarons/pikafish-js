@@ -25,6 +25,34 @@ from reader import read_dump  # noqa: E402
 
 CP_PER_INTERNAL = 0.25
 
+# The bands the trainer can reweight (`train.EVAL_BINS`); kept here so this tool
+# does not have to import torch just to print a table.
+BANDS = (0.0, 100.0, 300.0, 700.0, 1500.0, 4000.0)
+
+
+def print_bands(student: np.ndarray, teacher: np.ndarray, ref: np.ndarray) -> None:
+    """Where the student's error lives, split by the teacher's own |eval|.
+
+    A self-play corpus is dominated by decided positions, where a big error
+    changes nothing about the move; the band near equality is what the search
+    acts on, so it deserves its own number.
+    """
+    magnitude = np.abs(ref)
+    edges = list(BANDS) + [float("inf")]
+    print(f"{'|eval| band':>14} {'n':>7} {'mean|d|':>9} {'cp':>7} {'sign':>8} {'<=50cp':>8}")
+    for lo, hi in zip(edges, edges[1:]):
+        m = (magnitude >= lo) & (magnitude < hi)
+        if not m.any():
+            continue
+        d = np.abs(student[m] - teacher[m])
+        label = f"{lo:.0f}-{hi:.0f}" if np.isfinite(hi) else f"{lo:.0f}+"
+        print(
+            f"{label:>14} {int(m.sum()):7d} {d.mean():9.1f} "
+            f"{d.mean() * CP_PER_INTERNAL:7.1f} "
+            f"{(np.sign(student[m]) == np.sign(teacher[m])).mean() * 100:7.1f}% "
+            f"{(d * CP_PER_INTERNAL <= 50).mean() * 100:7.1f}%"
+        )
+
 
 def evaluate_net(net: nnue_io.Net, dump, indices: list[int]) -> np.ndarray:
     ev = nnue_io.Evaluator(net)
@@ -37,12 +65,14 @@ def evaluate_net(net: nnue_io.Net, dump, indices: list[int]) -> np.ndarray:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) < 4:
+    positional = [a for a in argv[1:] if not a.startswith("--")]
+    flags = {a for a in argv[1:] if a.startswith("--")}
+    if len(positional) < 3:
         print(__doc__)
         return 2
 
-    dump_path, a_path, b_path = argv[1], argv[2], argv[3]
-    limit = int(argv[4]) if len(argv) > 4 else 0
+    dump_path, a_path, b_path = positional[0], positional[1], positional[2]
+    limit = int(positional[3]) if len(positional) > 3 else 0
 
     dump = read_dump(dump_path)
     a = nnue_io.read_net(a_path)
@@ -80,6 +110,10 @@ def main(argv: list[str]) -> int:
         print(f"        within {tol:3d} cp: {frac:6.2f}%")
     print(f"        correlation {np.corrcoef(va, vb)[0, 1]:.6f}")
     print(f"        sign agreement {(np.sign(va) == np.sign(vb)).mean() * 100:.2f}%")
+
+    if "--bands" in flags:
+        print(f"\nB against the teacher, by the teacher's own |eval| (dump's labels)")
+        print_bands(vb, ref, ref)
     return 0
 
 

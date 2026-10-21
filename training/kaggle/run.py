@@ -40,6 +40,7 @@ overridden by the environment, which is how the local smoke test works:
     PIKAFISH_GEN_MINUTES  minutes of position generation; default 20
     PIKAFISH_BATCH        batch size; default 1024
     PIKAFISH_LR           learning rate; default 1e-3
+    PIKAFISH_EVAL_WEIGHT  equalise the |eval| bands in the loss: 0 off, 1.0 exact
     PIKAFISH_STAGES       space-separated subset of the stages, default all
     PIKAFISH_FORCE        1 to redo stages that have a marker
     PIKAFISH_ARCH         engine ARCH; default x86-64
@@ -525,6 +526,8 @@ def stage_train(shards: Path) -> Path:
         os.environ.get("PIKAFISH_SAVE_EVERY", "2000"),
         "--log-every",
         "500",
+        "--eval-weight-power",
+        knob("PIKAFISH_EVAL_WEIGHT", "0"),
         "--max-minutes",
         knob("PIKAFISH_TRAIN_MINUTES", "600"),
     ]
@@ -635,7 +638,8 @@ def main() -> int:
     print(f"params {PARAMS_FROM or 'none, built-in defaults'}")
     print(
         f"repo {REPO}\nwork {WORK}\nnet  {NET}\nhalf {HALF}\n"
-        f"steps {STEPS}\ngen {GEN_MINUTES} min\nbatch {BATCH} lr {LR}\nstages {' '.join(STAGES)}"
+        f"steps {STEPS}\ngen {GEN_MINUTES} min\nbatch {BATCH} lr {LR}\n"
+        f"eval-weight {knob('PIKAFISH_EVAL_WEIGHT', '0')}\nstages {' '.join(STAGES)}"
     )
 
     build_if_needed()

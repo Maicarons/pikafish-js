@@ -1,10 +1,11 @@
 {
-  "_note": "Read from this file when it sits next to run.py, otherwise from the copy in the cloned repository. The 20k-step run measured 63 cp mean error against the teacher while its training loss implied ~40 cp, so the corpus was too small: this run generates five times the positions and trains six times as long. PIKAFISH_TRAIN_MINUTES caps the training stage so export still runs inside the 12 hour session.",
+  "_note": "Read from this file when it sits next to run.py, otherwise from the copy in the cloned repository. The 20k-step run measured 63 cp mean error against the teacher and the 120k-step run 55 cp; a local A/B equalising the |eval| bands moved each band by at most 4% and the total by 0.5%, which says the L1=512 width rather than the loss weighting is the limit, so this run takes the mild 0.5 compromise and spends the time on data and steps instead. PIKAFISH_TRAIN_MINUTES caps the training stage so export still runs inside the 12 hour session.",
   "PIKAFISH_HALF": 512,
-  "PIKAFISH_GEN_MINUTES": 60,
-  "PIKAFISH_STEPS": 120000,
+  "PIKAFISH_GEN_MINUTES": 90,
+  "PIKAFISH_STEPS": 200000,
   "PIKAFISH_BATCH": 1024,
   "PIKAFISH_LR": 0.001,
+  "PIKAFISH_EVAL_WEIGHT": 0.5,
   "PIKAFISH_SAVE_EVERY": 5000,
   "PIKAFISH_TRAIN_MINUTES": 540
 }

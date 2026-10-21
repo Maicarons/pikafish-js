@@ -36,6 +36,41 @@ EVAL_SCALE = 400.0
 WDL_SCALE = EVAL_SCALE * 4.0
 LN10 = math.log(10.0)
 
+# Bands of |eval| used by the optional reweighting, in internal units (400 = 1
+# pawn-ish, so these are 0, 25, 75, 175, 375 cp and beyond).  A self-play corpus
+# is a corpus of decided games: on the measured one 41% of the positions sit in
+# 1500-4000 while only 12% are within 100 of equality, yet equality is where the
+# search's move choice is actually decided.
+EVAL_BINS = (0.0, 100.0, 300.0, 700.0, 1500.0, 4000.0)
+
+
+def eval_weights(eval_internal: np.ndarray, power: float, clip: float) -> np.ndarray:
+    """Per-position weights that give every |eval| band the same total weight.
+
+    `power` tempers the correction: 1.0 equalises the bands exactly, 0.5 takes
+    the square root of the correction (a gentler compromise), 0 disables it.
+    The result is normalised to a mean of one, so the learning rate keeps its
+    meaning, and clamped at `clip` so a nearly empty band cannot dominate.
+    """
+    magnitude = np.abs(np.asarray(eval_internal, dtype=np.float64))
+    band = np.digitize(magnitude, EVAL_BINS)
+    counts = np.bincount(band, minlength=len(EVAL_BINS) + 1).astype(np.float64)
+    present = counts > 0
+    per_band = np.ones_like(counts)
+    equalised = present.copy()
+    # The last band is the one the target clip flattens: every position in it is
+    # labelled with the same saturating value, so it is not a band of its own.
+    # It shares the weight of its neighbour instead of being equalised, which
+    # would otherwise make it the heaviest band in the corpus.
+    equalised[-1] = False
+    per_band[equalised] = (magnitude.size / (equalised.sum() * counts[equalised])) ** power
+    per_band[-1] = per_band[-2] if len(per_band) > 1 else 1.0
+    weights = per_band[band]
+    if clip > 0:
+        weights = np.clip(weights, 0.0, clip)
+    mean = weights.mean()
+    return (weights / mean if mean else weights).astype(np.float32)
+
 
 def collate(rows: list[tuple[np.ndarray, np.ndarray, np.ndarray, float]], device: torch.device):
     stm_idx, oth_idx, buckets, targets = [], [], [], []
@@ -67,7 +102,13 @@ def _pack(parts: list[np.ndarray], offsets: list[int], device: torch.device):
     )
 
 
-def batch_indices(shard: dict, positions: np.ndarray, device: torch.device, clip: float):
+def batch_indices(
+    shard: dict,
+    positions: np.ndarray,
+    device: torch.device,
+    clip: float,
+    weights: np.ndarray | None = None,
+):
     """Slice a shard for the given positions (kept sorted by the caller)."""
     stm_off = shard["stm_offsets"]
     oth_off = shard["oth_offsets"]
@@ -77,7 +118,8 @@ def batch_indices(shard: dict, positions: np.ndarray, device: torch.device, clip
         o = shard["oth_indices"][oth_off[p] : oth_off[p + 1]]
         t = float(np.clip(shard["eval_internal"][p], -clip, clip)) / EVAL_SCALE
         rows.append((s, o, int(shard["bucket"][p]), t))
-    return collate(rows, device)
+    w = None if weights is None else torch.from_numpy(weights[positions]).to(device)
+    return (*collate(rows, device), w)
 
 
 def synthetic_batch(rng: np.random.Generator, batch: int, device: torch.device, features: int):
@@ -101,24 +143,36 @@ def load_shard(path: Path) -> dict:
         return {k: data[k] for k in data.files}
 
 
-def wdl_loss(pred_internal: torch.Tensor, target_internal: torch.Tensor) -> torch.Tensor:
+def wdl_loss(
+    pred_internal: torch.Tensor, target_internal: torch.Tensor, weights: torch.Tensor | None = None
+) -> torch.Tensor:
     """Smooth L1 between the two implied win probabilities (bounded, scale free)."""
     k = LN10 / WDL_SCALE
     p = torch.sigmoid(pred_internal * k)
     t = torch.sigmoid(target_internal * k)
-    return nn.functional.mse_loss(p, t)
+    return nn.functional.mse_loss(p, t, reduction="none" if weights is not None else "mean")
 
 
 def loss_for(
-    pred_internal: torch.Tensor, target_scaled: torch.Tensor, args: argparse.Namespace
+    pred_internal: torch.Tensor,
+    target_scaled: torch.Tensor,
+    args: argparse.Namespace,
+    weights: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """`target_scaled` is the teacher's internal value already divided by EVAL_SCALE."""
+    reduction = "none" if weights is not None else "mean"
     if args.huber:
-        value = nn.functional.huber_loss(pred_internal / EVAL_SCALE, target_scaled, delta=args.huber)
+        value = nn.functional.huber_loss(
+            pred_internal / EVAL_SCALE, target_scaled, delta=args.huber, reduction=reduction
+        )
     else:
-        value = nn.functional.mse_loss(pred_internal / EVAL_SCALE, target_scaled)
+        value = nn.functional.mse_loss(pred_internal / EVAL_SCALE, target_scaled, reduction=reduction)
     if args.wdl_weight:
-        value = value + args.wdl_weight * wdl_loss(pred_internal, target_scaled * EVAL_SCALE)
+        value = value + args.wdl_weight * wdl_loss(
+            pred_internal, target_scaled * EVAL_SCALE, weights
+        )
+    if weights is not None:
+        value = (value * weights).sum() / weights.sum()
     return value
 
 
@@ -164,13 +218,25 @@ def train(args: argparse.Namespace) -> None:
     running = 0.0
 
     model.train()
+    if args.eval_weight_power > 0:
+        print(
+            f"eval weighting power {args.eval_weight_power} "
+            f"(bands {' '.join(str(int(b)) for b in EVAL_BINS)} internal, clip {args.eval_weight_clip})"
+        )
     while step < args.steps:
         if args.synthetic:
-            shard, order, cursor = None, None, 0
+            shard, order, cursor, shard_w = None, None, 0, None
         else:
             shard = load_shard(paths[rng.integers(len(paths))])
             order = rng.permutation(len(shard["eval_internal"]))
             cursor = 0
+            shard_w = (
+                eval_weights(
+                    shard["eval_internal"], args.eval_weight_power, args.eval_weight_clip
+                )
+                if args.eval_weight_power > 0
+                else None
+            )
 
         while step < args.steps:
             if shard is not None:
@@ -178,13 +244,13 @@ def train(args: argparse.Namespace) -> None:
                     break
                 take = np.sort(order[cursor : cursor + args.batch_size])
                 cursor += len(take)
-                batch = batch_indices(shard, take, device, args.target_clip)
+                batch = batch_indices(shard, take, device, args.target_clip, shard_w)
             else:
-                batch = synthetic_batch(rng, args.batch_size, device, model.features)
+                batch = (*synthetic_batch(rng, args.batch_size, device, model.features), None)
 
-            si, so, oi, oo, bucket, y = batch
+            si, so, oi, oo, bucket, y, w = batch
             pred = model(si, so, oi, oo, bucket)
-            loss = loss_for(pred, y, args)
+            loss = loss_for(pred, y, args, w)
 
             opt.zero_grad(set_to_none=True)
             loss.backward()
@@ -319,6 +385,15 @@ def main() -> None:
     p.add_argument("--target-clip", type=float, default=3000.0, help="internal units")
     p.add_argument("--wdl-weight", type=float, default=0.3)
     p.add_argument("--huber", type=float, default=0.0, help="delta; 0 uses MSE")
+    p.add_argument(
+        "--eval-weight-power",
+        type=float,
+        default=0.0,
+        help="equalise the |eval| bands: 0 off, 0.5 gentle, 1.0 exact",
+    )
+    p.add_argument(
+        "--eval-weight-clip", type=float, default=6.0, help="cap on the weight; 0 disables"
+    )
     p.add_argument("--half", type=int, default=512, help="L1 width of the student")
     p.add_argument("--l2", type=int, default=32)
     p.add_argument("--l3", type=int, default=32)

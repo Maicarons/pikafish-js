@@ -34,6 +34,7 @@ Kaggle 运行脚本时既不给参数也不给环境变量，所以旋钮放在 
 | `PIKAFISH_STEPS` | 训练步数 | 20000 |
 | `PIKAFISH_BATCH` / `PIKAFISH_LR` | 批大小 / 学习率 | 1024 / 0.001 |
 | `PIKAFISH_SAVE_EVERY` | 每多少步落盘（后可 `--resume`） | 2000 |
+| `PIKAFISH_EVAL_WEIGHT` | 按 \|eval\| 分档重加权：0 关闭，1.0 每档等权 | 0 |
 | `PIKAFISH_TRAIN_MINUTES` | 训练阶段最多跑多久，保证 export 还能执行 | 540 |
 
 改完 `PIKAFISH_STEPS` 再 push 一次就是长跑。实测吞吐 29.7k 局面/秒，200k 步约 2 小时，
