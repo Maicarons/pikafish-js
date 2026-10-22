@@ -74,7 +74,7 @@ def _targets(text: str) -> tuple[int, int]:
 class Engine:
     """A UCI subprocess, read line by line on a background thread."""
 
-    def __init__(self, path: str | Path, timeout: float = 120.0):
+    def __init__(self, path: str | Path, timeout: float = 120.0, cwd: str | Path | None = None):
         self.path = str(path)
         self.timeout = timeout
         self.lines: collections.deque[str] = collections.deque()
@@ -86,6 +86,9 @@ class Engine:
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
+            # The engine reads its net from the working directory, so a second
+            # engine with a different net needs its own directory.
+            cwd=str(cwd) if cwd is not None else None,
         )
         self.reader = threading.Thread(target=self._pump, daemon=True)
         self.reader.start()
