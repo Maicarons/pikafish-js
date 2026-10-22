@@ -69,12 +69,16 @@ L1 = 1024
 
 # Architecture hashes are compile-time constants of the engine that loads the
 # net, and they move with `L1`.  Each entry was printed by `pikafish-dump
-# inspect` from a build of that width (`training/engine/build-512`), and the
-# 1024 values were then confirmed verbatim inside the official file.  The header
-# hash is their XOR (`Network::hash`).
+# inspect` from a build of that width (`training/engine/build-512`,
+# `training/engine/build-width.sh`), and the 1024 values were then confirmed
+# verbatim inside the official file.  The header hash is their XOR
+# (`Network::hash`).
 ARCH_HASHES: dict[int, tuple[int, int]] = {
     1024: (0x6E62D08C, 0x63337116),
     512: (0x6E62DC8C, 0x63337196),
+    256: (0x6E62DA8C, 0x63337156),
+    128: (0x6E62D98C, 0x63337136),
+    64: (0x6E62D80C, 0x633371E6),
 }
 FT_HASH, ARCH_HASH = ARCH_HASHES[L1]
 NETWORK_HASH = FT_HASH ^ ARCH_HASH
