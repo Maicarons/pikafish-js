@@ -134,6 +134,7 @@ training/
     train.py            训练循环、断点续训、导出
     export_student.py   从 checkpoint 导出 .nnue，并用同宽引擎复核
     selfplay.py         用引擎自对弈生成 FEN（含面向 bucket 的削子配方）
+    label_search.py     用教师的搜索分给局面打标（与静态评估并列的第二种目标）
     compare_nets.py     两个网络在同一批局面上的评估差异（--bands 可分档）
     compare_engines.py  两个引擎在同一批局面上的每步代价（教师视角的「悔棋」）
     match_engines.py    两个引擎的固定节点对局，量 Elo（含和棋判定与棋盘跟踪）
@@ -219,6 +220,15 @@ python training/python/test_bucket.py
 | `rooks2nc0` | 双方 2 车、0 马炮 | bucket 16/20 |
 | `rooks2nc10` | 双方 2 车、一方 1 马炮 | bucket 16（关键：马炮数必须**不相等**） |
 | `nothing` | 双方 0 车、一方 1 马炮 | bucket 3 一类 |
+
+### dump 会丢掉一部分局面，所以它同时写下自己收下的 FEN
+
+引擎拒绝两种局面：非法 FEN，以及**轮到走方正被将军**的局面（网络对后者没有定义，
+引擎从不直接评估）。实测 53,541 个自对弈局面里有 3,832 个属于后者（7.2%）。
+
+所以 `pikafish-dump` 现在会额外写一个 `<out>.bin.fens.txt`，里面是**它真正写进
+dump 的那些 FEN、顺序一致**。没有它，任何按局面打标的旁路数据（搜索分、胜负、
+人工标注）都会和特征错位——这也是 `label_search.py` 能对上号的前提。
 
 ## Kaggle
 

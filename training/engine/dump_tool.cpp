@@ -177,6 +177,7 @@ int main(int argc, char** argv) {
 
     std::uint32_t written = 0;
     std::uint32_t skipped = 0;
+    std::vector<std::string> kept;
 
     for (const auto& fen : fens) {
         Position pos;
@@ -192,6 +193,7 @@ int main(int argc, char** argv) {
             ++skipped;
             continue;
         }
+        kept.push_back(fen);
 
         stack->reset();
         caches->clear(*net);
@@ -247,6 +249,17 @@ int main(int argc, char** argv) {
     out.seekp(countPos);
     write_u32(out, written);
     out.close();
+
+    // The positions the engine refused (illegal FEN, or the side to move is in
+    // check and the network is not defined there) are dropped, so the dump is
+    // shorter than the input list.  The sidecar keeps the FENs that made it
+    // in, in order, so any per-position label can be lined up with it.
+    if (!kept.empty())
+    {
+        std::ofstream fens(outPath.string() + ".fens.txt");
+        for (const auto& fen : kept)
+            fens << fen << "\n";
+    }
 
     std::cerr << "wrote " << written << " positions";
     if (skipped)

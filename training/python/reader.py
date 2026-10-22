@@ -33,6 +33,10 @@ class Dump:
     cp: np.ndarray  # int32 [n], side-to-move POV, display centipawns
     threat_dim: int
     psq_dim: int
+    # Optional alternative regression target, in the same internal units as
+    # `eval_internal` (the teacher's search score, for instance).  The trainer
+    # uses it when a shard carries it.
+    target_internal: np.ndarray | None = None
 
     def __len__(self) -> int:
         return int(self.cp.shape[0])
@@ -117,18 +121,20 @@ def write_shards(dump: Dump, out_dir: str | Path, per_shard: int = 200_000) -> l
         c, d = dump.oth_offsets[start], dump.oth_offsets[stop]
 
         path = out / f"shard-{start // per_shard:05d}.npz"
-        np.savez(
-            path,
-            stm_offsets=dump.stm_offsets[start : stop + 1] - a,
-            stm_indices=dump.stm_indices[a:b],
-            oth_offsets=dump.oth_offsets[start : stop + 1] - c,
-            oth_indices=dump.oth_indices[c:d],
-            bucket=dump.bucket[start:stop],
-            eval_internal=dump.eval_internal[start:stop],
-            cp=dump.cp[start:stop],
-            threat_dim=np.int64(dump.threat_dim),
-            psq_dim=np.int64(dump.psq_dim),
-        )
+        arrays = {
+            "stm_offsets": dump.stm_offsets[start : stop + 1] - a,
+            "stm_indices": dump.stm_indices[a:b],
+            "oth_offsets": dump.oth_offsets[start : stop + 1] - c,
+            "oth_indices": dump.oth_indices[c:d],
+            "bucket": dump.bucket[start:stop],
+            "eval_internal": dump.eval_internal[start:stop],
+            "cp": dump.cp[start:stop],
+            "threat_dim": np.int64(dump.threat_dim),
+            "psq_dim": np.int64(dump.psq_dim),
+        }
+        if dump.target_internal is not None:
+            arrays["target_internal"] = dump.target_internal[start:stop]
+        np.savez(path, **arrays)
         paths.append(path)
 
     (out / "meta.json").write_text(

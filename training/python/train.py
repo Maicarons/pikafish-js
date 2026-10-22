@@ -112,11 +112,16 @@ def batch_indices(
     """Slice a shard for the given positions (kept sorted by the caller)."""
     stm_off = shard["stm_offsets"]
     oth_off = shard["oth_offsets"]
+    # A shard may carry an alternative target (the teacher's search score, for
+    # instance); when it does, that is what the trainer regresses on.
+    target = shard.get("target_internal")
+    if target is None:
+        target = shard["eval_internal"]
     rows = []
     for p in positions:
         s = shard["stm_indices"][stm_off[p] : stm_off[p + 1]]
         o = shard["oth_indices"][oth_off[p] : oth_off[p + 1]]
-        t = float(np.clip(shard["eval_internal"][p], -clip, clip)) / EVAL_SCALE
+        t = float(np.clip(target[p], -clip, clip)) / EVAL_SCALE
         rows.append((s, o, int(shard["bucket"][p]), t))
     w = None if weights is None else torch.from_numpy(weights[positions]).to(device)
     return (*collate(rows, device), w)
