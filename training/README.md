@@ -135,6 +135,11 @@ batch 1024、热启动、L1=512），只差回归目标：
 教师的 50 MB 网是 L1=1024，两者互不兼容（arch hash 不同，引擎会拒绝加载）——要给它
 出 wasm，需要另编一套 L1=512 的引擎。
 
+本机留了两份：`training/out/student-l1-512-200k.nnue`（上面这张）和
+`training/engine/build-512/src/pikafish.nnue`（同宽引擎旁边的副本，方便直接对局）。
+两者都在 gitignore 里；权威副本是 Kaggle kernel `mccarron/pikafish-js-distill` 的输出，
+用 `kernels output --file-pattern "student\.nnue$"` 取回，SHA-256 应当等于上面那串。
+
 ## 目录结构
 
 ```
