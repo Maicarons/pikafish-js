@@ -16,7 +16,10 @@ import {
   buildLabel,
   createEngine,
   type AnalysisInfo,
+  type BuildAssets,
+  type BuildName,
   type BuildSelection,
+  type EngineVariant,
   type PikafishEngine,
   type ReadyInfo,
 } from 'pikafish-js';
@@ -69,14 +72,37 @@ function resolveBuildChoice(): BuildSelection {
 interface BuildManifest {
   js: string;
   wasm: string;
+  bytes?: number;
+}
+
+interface EngineManifestEntry {
+  label: string;
+  netLabel: string;
+  net: { url: string; size: number; sha256: string };
+  builds: Record<string, BuildManifest>;
 }
 
 interface EngineManifest {
   version: string;
   upstreamCommit: string;
   emsdk: string;
-  net: { url: string; size: number; sha256: string };
-  builds: Record<string, BuildManifest>;
+  engines: Record<string, EngineManifestEntry>;
+}
+
+// The engine variant picks the weights, and with them the WebAssembly build:
+// a net is only valid for the width it was trained for.  `strong` is the
+// official 50 MB net, `lite` the distilled 25 MB one.
+//
+// The distilled net is the default: it is half the download and about a
+// hundred Elo behind, which no human player will ever notice.  `?variant=`
+// wins over the stored preference so a link (or a test) can pin it.
+type VariantChoice = string;
+
+function resolveVariantChoice(available: string[]): VariantChoice {
+  const requested = new URLSearchParams(location.search).get('variant');
+  const stored = requested ?? loadPreference<string>('variant', 'lite');
+  if (available.includes(stored)) return stored;
+  return available.includes('lite') ? 'lite' : (available[0] ?? 'strong');
 }
 
 const MARGIN = 60;
@@ -175,10 +201,14 @@ app.innerHTML = `
             <span id="engineBadge" class="badge">加载中</span>
           </div>
           <label class="field">
+            <span>网络</span>
+            <select id="engineSelect"></select>
+          </label>
+          <label class="field">
             <span>构建</span>
             <select id="buildSelect"></select>
           </label>
-          <p class="muted tiny">切换构建会重新加载页面。</p>
+          <p class="muted tiny">切换网络或构建会重新加载页面；网络与构建是一套的，不能混用。</p>
           <dl class="stats">
             <div><dt>构建</dt><dd id="statBuild">—</dd></div>
             <div><dt>线程</dt><dd id="statThreads">—</dd></div>
@@ -279,12 +309,15 @@ const loadingText = must<HTMLParagraphElement>('#loadingText');
 const loadingDetail = must<HTMLElement>('#loadingDetail');
 const progressBar = must<HTMLSpanElement>('#progressBar');
 const buildSelect = must<HTMLSelectElement>('#buildSelect');
+const engineSelect = must<HTMLSelectElement>('#engineSelect');
 const srStatus = must<HTMLElement>('#srStatus');
 
 let game = new Game();
 let playerColor: Color = loadPreference<Color>('side', 'w') === 'b' ? 'b' : 'w';
 let difficulty = clamp(loadPreference<number>('difficulty', 4), 1, LEVELS.length);
 const buildChoice: BuildSelection = resolveBuildChoice();
+let variantChoice: VariantChoice = 'strong';
+const engineLabels: Record<string, string> = {};
 let flipped = playerColor === 'b';
 let selected: Square | null = null;
 // Roving tabindex: exactly one square is tabbable, and the arrow keys move it so
@@ -403,6 +436,16 @@ buildSelect.addEventListener('change', () => {
   location.assign(url.href);
 });
 
+engineSelect.addEventListener('change', () => {
+  const value = engineSelect.value;
+  savePreference('variant', value);
+  const url = new URL(location.href);
+  url.searchParams.set('variant', value);
+  // The weights and the WebAssembly build go together, so switching means a
+  // fresh page as well.
+  location.assign(url.href);
+});
+
 difficultySelect.addEventListener('change', () => {
   difficulty = clamp(Number(difficultySelect.value), 1, LEVELS.length);
   savePreference('difficulty', difficulty);
@@ -476,14 +519,35 @@ async function bootEngine(): Promise<void> {
     const response = await fetch(manifestUrl);
     if (!response.ok) throw new Error(`引擎清单加载失败：HTTP ${response.status}`);
     const manifest = (await response.json()) as EngineManifest;
-    const netUrl = new URL(manifest.net.url, document.baseURI).href;
+    const available = Object.keys(manifest.engines);
+    if (!available.length) throw new Error('引擎清单里没有可用的引擎。');
+    variantChoice = resolveVariantChoice(available);
+    engineSelect.innerHTML = available
+      .map((name) => {
+        const spec = manifest.engines[name];
+        if (!spec) return '';
+        return `<option value="${name}">${spec.label} · ${spec.netLabel}（${formatBytes(
+          spec.net.size,
+        )}）</option>`;
+      })
+      .join('');
+    engineSelect.value = variantChoice;
 
-    setLoading('正在初始化 WebAssembly…', `${manifest.builds ? '三个构建可用' : ''}`);
+    const variants: Record<string, EngineVariant> = {};
+    for (const [name, spec] of Object.entries(manifest.engines)) {
+      engineLabels[name] = spec.netLabel;
+      variants[name] = {
+        builds: spec.builds as Partial<Record<BuildName, BuildAssets>>,
+        netUrl: new URL(spec.net.url, document.baseURI).href,
+        netSha256: spec.net.sha256,
+      };
+    }
+
+    setLoading('正在初始化 WebAssembly…', `${available.length} 套引擎可用`);
     engine = await createEngine({
-      builds: manifest.builds,
+      variants,
+      variant: variantChoice,
       build: buildChoice,
-      netUrl,
-      netSha256: manifest.net.sha256,
       workerFactory: () =>
         new Worker(engineWorkerUrl, {
           type: 'classic',
@@ -973,7 +1037,10 @@ function renderEngine(): void {
   statThreads.textContent = `${info?.threads ?? 1} 线程`;
   statHash.textContent = `${info?.hashMB ?? 0} MB`;
   const bytes = info?.netBytes ?? 0;
-  statNet.textContent = `${formatBytes(bytes)}${info?.netCached ? ' · 缓存' : ''}`;
+  const label = engineLabels[engine.variant];
+  statNet.textContent = `${label ? `${label} · ` : ''}${formatBytes(bytes)}${
+    info?.netCached ? ' · 缓存' : ''
+  }`;
   engineNote.textContent = info?.netCached
     ? 'NNUE 权重来自浏览器缓存，本次没有重新下载。'
     : 'NNUE 权重已写入浏览器缓存，下次打开会更快。';
@@ -1268,6 +1335,12 @@ Object.defineProperty(window, '__pikafish', {
     },
     get buildChoice(): BuildSelection {
       return buildChoice;
+    },
+    get variant(): string {
+      return variantChoice;
+    },
+    get variantChoice(): string {
+      return variantChoice;
     },
     get fen(): string {
       return game.fen;

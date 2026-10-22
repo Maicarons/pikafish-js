@@ -36,8 +36,14 @@ interface Row {
 interface Manifest {
   version: string;
   upstreamCommit: string;
-  net: { url: string; sha256: string };
-  builds: Record<string, { js: string; wasm: string }>;
+  engines: Record<
+    string,
+    {
+      label: string;
+      net: { url: string; sha256: string };
+      builds: Record<string, { js: string; wasm: string }>;
+    }
+  >;
 }
 
 const statusEl = document.querySelector<HTMLElement>('#status')!;
@@ -65,7 +71,12 @@ async function boot(): Promise<void> {
   const response = await fetch(new URL('engine/engine.json', document.baseURI));
   if (!response.ok) throw new Error(`引擎清单加载失败：HTTP ${response.status}`);
   const manifest = (await response.json()) as Manifest;
-  const netUrl = new URL(manifest.net.url, document.baseURI).href;
+  // The benchmark measures the shipped engine, so it uses the strong one; the
+  // distilled net has its own build and would not be comparable.
+  const engineName = manifest.engines.strong ? 'strong' : (Object.keys(manifest.engines)[0] ?? '');
+  const spec = manifest.engines[engineName];
+  if (!spec) throw new Error('引擎清单里没有可用的引擎。');
+  const netUrl = new URL(spec.net.url, document.baseURI).href;
 
   const rows: Row[] = [];
   for (const config of CONFIGS) {
@@ -74,11 +85,11 @@ async function boot(): Promise<void> {
     let engine: Awaited<ReturnType<typeof createEngine>> | null = null;
     try {
       engine = await createEngine({
-        builds: manifest.builds,
+        builds: spec.builds,
         build: config.build,
         threads: config.threads,
         netUrl,
-        netSha256: manifest.net.sha256,
+        netSha256: spec.net.sha256,
         workerFactory: () => new Worker(workerUrl, { type: 'classic', name: 'pikafish-bench' }),
       });
       const initMs = Math.round(performance.now() - started);

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { waitForReady } from './support';
 
 test('NNUE 下载失败时给出可恢复的错误', async ({ page }) => {
-  await page.route('**/pikafish.nnue', (route) => route.abort());
+  await page.route('**/*.nnue', (route) => route.abort());
   await page.goto('/');
 
   await expect(page.locator('#errorBanner')).toBeVisible({ timeout: 90_000 });
@@ -12,13 +12,15 @@ test('NNUE 下载失败时给出可恢复的错误', async ({ page }) => {
 });
 
 test('缓存中的权重损坏后会重新下载并恢复', async ({ page }) => {
-  await page.goto('/?build=single-simd');
+  await page.goto('/?build=single-simd&variant=strong');
   await waitForReady(page);
 
   const sha256 = await page.evaluate(async () => {
     const response = await fetch('engine/engine.json');
-    const manifest = (await response.json()) as { net: { sha256: string } };
-    return manifest.net.sha256;
+    const manifest = (await response.json()) as {
+      engines: Record<string, { net: { sha256: string } }>;
+    };
+    return manifest.engines.strong.net.sha256;
   });
 
   // Poison the cache the way a half-written or tampered entry would.
@@ -51,8 +53,8 @@ test('未知的构建参数回退到自动选择', async ({ page }) => {
 });
 
 test('构建资源缺失时报错而不是一直转圈', async ({ page }) => {
-  await page.route('**/engine/single-nosimd/**', (route) => route.abort());
-  await page.goto('/?build=single-nosimd');
+  await page.route('**/engine/*/single-nosimd/**', (route) => route.abort());
+  await page.goto('/?build=single-nosimd&variant=strong');
 
   await expect(page.locator('#errorBanner')).toBeVisible({ timeout: 90_000 });
   await expect(page.locator('#loadingOverlay')).toBeHidden();

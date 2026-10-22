@@ -30,6 +30,8 @@ const engine = await createEngine({
 | --- | --- | --- | --- |
 | `build` | `'auto' \| BuildName` | `'auto'` | 指定构建；设备不支持时抛 `BUILD_UNAVAILABLE` |
 | `builds` | `Partial<Record<BuildName, BuildAssets>>` | — | 三套构建的 JS/WASM URL |
+| `variants` | `Record<string, EngineVariant>` | — | 具名引擎配置（各自的构建与权重） |
+| `variant` | `string` | — | 选哪一套 `variants`；不填就用上面的 `builds` 与权重 |
 | `jsUrl` / `wasmUrl` | `string` | — | 只提供一套构建时的简写 |
 | `netUrl` | `string` | — | 权重 URL；与 `netData` 二选一 |
 | `netData` | `ArrayBuffer \| Uint8Array` | — | 直接传入权重字节（自带分发） |
@@ -55,6 +57,33 @@ await createEngine({ netUrl: '/engine/pikafish.nnue', netSha256: sha });
 // 自带分发：从 IndexedDB / 打包资源读出来的 ArrayBuffer
 await createEngine({ netData: buffer, netSha256: sha });
 ```
+
+#### 具名引擎配置（`variants`）
+
+权重是跟**特征宽度**绑死的：L1=1024 的教师网和 L1=512 的蒸馏网不能互相加载，引擎会
+按 arch hash 拒绝。所以「用哪张网」和「用哪套 wasm」必须一起决定，`variants` 就是把
+这两样捆在一起：
+
+```ts
+const engine = await createEngine({
+  variants: {
+    strong: {
+      builds: { 'single-simd': { js: '/engine/strong/single-simd/pikafish.js', wasm: '…' } },
+      netUrl: '/engine/pikafish.nnue',
+      netSha256: 'bf3982…73ac',
+    },
+    lite: {
+      builds: { 'single-simd': { js: '/engine/lite/single-simd/pikafish.js', wasm: '…' } },
+      netUrl: '/engine/pikafish-lite.nnue',
+      netSha256: 'ac223f6d…97f',
+    },
+  },
+  variant: 'lite',
+});
+```
+
+`variant` 选中的那一套决定构建与权重；没写 `variants` 时行为与从前完全一样
+（用顶层的 `builds` 与权重）。`engine.variant` 可以读回当前用的那一套的名字。
 
 ### `PikafishEngine`
 

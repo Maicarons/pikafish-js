@@ -19,7 +19,9 @@ async function useFastLevel(page: import('@playwright/test').Page): Promise<void
 
 for (const build of BUILDS) {
   test(`@smoke 构建 ${build} 可以加载并完成一次搜索`, async ({ page }) => {
-    await page.goto(`/?build=${build}`);
+    // The strong engine is pinned here: these tests are about the builds, and
+    // the strong net is the one every build of that family loads.
+    await page.goto(`/?build=${build}&variant=strong`);
     const ready = await waitForReady(page);
     expect(ready.build).toBe(build);
     expect(ready.engineInfo?.build).toBe(build);

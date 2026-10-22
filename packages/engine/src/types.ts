@@ -31,11 +31,32 @@ export interface Capabilities {
   hardwareConcurrency: number;
 }
 
+/**
+ * A named engine configuration: the WASM builds it offers and the NNUE weights
+ * those builds need.
+ *
+ * The weights are tied to the build: a net for a different feature width is
+ * rejected by the engine, so a narrower net needs its own WebAssembly build.
+ * Keeping the two together in one variant is what makes that safe.
+ */
+export interface EngineVariant {
+  /** The JS/WASM assets of this variant, by build name. */
+  builds?: Partial<Record<BuildName, BuildAssets>>;
+  /** The weights for this variant: URL or in-memory data. */
+  netUrl?: string;
+  netData?: ArrayBuffer | Uint8Array;
+  netSha256?: string;
+}
+
 export interface PikafishOptions {
   /** Explicit build, or `auto` based on SIMD / cross-origin isolation. */
   build?: BuildSelection;
   /** Map of build name to JS/WASM URLs. */
   builds?: Partial<Record<BuildName, BuildAssets>>;
+  /** Named engine configurations; `variant` picks one of them. */
+  variants?: Record<string, EngineVariant>;
+  /** Which variant to use. Defaults to the top-level `builds` and weights. */
+  variant?: string;
   /** Single build shortcut when `builds` is omitted. */
   jsUrl?: string;
   wasmUrl?: string;

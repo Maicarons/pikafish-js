@@ -62,18 +62,24 @@ node scripts/bench.mjs --browser webkit  --movetime 1000 --out bench-results/web
 
 ## 体积与传输
 
-三套构建的文件大小（`npm run package:wasm` 产出，`SHA256SUMS` 可复核）：
+六套构建的文件大小（`npm run package:wasm` 产出，`SHA256SUMS` 可复核）：两套引擎
+（`strong` = L1=1024，`lite` = L1=512）× 三种能力构建。
 
 | 文件 | 原始 | gzip | brotli |
 | --- | --- | --- | --- |
 | `*.pikafish.wasm`（任一套） | 654,299–657,901 B | ≈ 236 KB | ≈ 180 KB |
 | `*.pikafish.js` | 81,122–81,124 B | ≈ 22 KB | ≈ 19 KB |
-| `pikafish.nnue` | 50,241,100 B | —（已是压缩格式） | — |
+| `pikafish.nnue`（教师，strong） | 50,241,100 B | —（已是压缩格式） | — |
+| `pikafish-lite.nnue`（蒸馏，lite） | 25,136,309 B | —（已是压缩格式） | — |
 
-**首次访问的真实成本约 48 MB**（权重）+ 约 0.25 MB（wasm 压缩后）。权重只下载一次，之后走
-Cache Storage；刷新时只做一次 SHA-256 校验（约 0.3–0.8 s）。
+**首次访问的真实成本**：默认用蒸馏网时约 24 MB（权重）+ 约 0.25 MB（wasm 压缩后）；
+切回强力引擎则是约 48 MB + 约 0.25 MB。权重只下载一次，之后走 Cache Storage；
+刷新时只做一次 SHA-256 校验（约 0.3–0.8 s）。
 
-因此“首屏快”不等于“引擎快”：真正的门槛是那 48 MB。演示站如实显示下载进度，不做假加载。
+因此“首屏快”不等于“引擎快”：真正的门槛是那张网。演示站如实显示下载进度，不做假加载。
+
+两张网对应两套 wasm，不能混用：权重是按特征宽度（`L1`）训练出来的，宽度对不上时引擎
+会按 arch hash 拒绝加载。所以切换网络要连引擎构建一起换。
 
 ## 内存
 

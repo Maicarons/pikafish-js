@@ -9,6 +9,7 @@ import {
   validateMove,
 } from './uci.js';
 import { clampHash, clampThreads, chooseBuild, detectCapabilities } from './capabilities.js';
+import { resolveVariant } from './variant.js';
 import type {
   AnalysisInfo,
   BuildAssets,
@@ -73,6 +74,8 @@ interface ResolvedNet {
 export class PikafishEngine {
   readonly capabilities: Capabilities;
   readonly build: BuildName;
+  /** The name of the engine variant in use, e.g. `strong` or `lite`. */
+  readonly variant: string;
   private worker: Worker;
   private readyInfo: ReadyInfo | null = null;
   private disposed = false;
@@ -92,11 +95,13 @@ export class PikafishEngine {
     options: PikafishOptions,
     build: BuildName,
     capabilities: Capabilities,
+    variant: string,
   ) {
     this.worker = worker;
     this.options = options;
     this.build = build;
     this.capabilities = capabilities;
+    this.variant = variant;
     this.worker.addEventListener('message', this.handleMessage);
     this.worker.addEventListener('error', this.handleWorkerError);
     this.worker.addEventListener('messageerror', this.handleMessageError);
@@ -107,9 +112,10 @@ export class PikafishEngine {
       throw new PikafishError('Web Workers are required to run Pikafish.', 'UNSUPPORTED_ENV');
     }
     const capabilities = detectCapabilities();
-    const build = chooseBuild(capabilities, options);
-    const assets = resolveAssets(options, build);
-    const net = resolveNet(options);
+    const variant = resolveVariant(options);
+    const build = chooseBuild(capabilities, { build: options.build, builds: variant.builds });
+    const assets = resolveAssets(options, build, variant.builds);
+    const net = resolveNet(variant.net, options.cacheNet !== false);
 
     let worker: Worker;
     try {
@@ -124,7 +130,7 @@ export class PikafishEngine {
       throw new PikafishError('Failed to create the Pikafish worker.', 'WORKER_ERROR', error);
     }
 
-    const engine = new PikafishEngine(worker, options, build, capabilities);
+    const engine = new PikafishEngine(worker, options, build, capabilities, variant.name);
     try {
       await engine.initialize(assets, net);
       return engine;
@@ -534,8 +540,12 @@ export class PikafishEngine {
   }
 }
 
-function resolveAssets(options: PikafishOptions, build: BuildName): BuildAssets {
-  const selected = options.builds?.[build];
+function resolveAssets(
+  options: PikafishOptions,
+  build: BuildName,
+  builds: Partial<Record<BuildName, BuildAssets>> | undefined,
+): BuildAssets {
+  const selected = builds?.[build];
   const shortcut =
     options.jsUrl && options.wasmUrl ? { js: options.jsUrl, wasm: options.wasmUrl } : null;
   const assets = selected ?? shortcut;
@@ -545,22 +555,25 @@ function resolveAssets(options: PikafishOptions, build: BuildName): BuildAssets 
   return { ...assets, js: absoluteUrl(assets.js), wasm: absoluteUrl(assets.wasm) };
 }
 
-function resolveNet(options: PikafishOptions): ResolvedNet {
-  const hasUrl = typeof options.netUrl === 'string' && options.netUrl.length > 0;
-  const hasData = options.netData != null;
+function resolveNet(
+  net: { url?: string; data?: ArrayBuffer | Uint8Array; sha256?: string },
+  cache = true,
+): ResolvedNet {
+  const hasUrl = typeof net.url === 'string' && net.url.length > 0;
+  const hasData = net.data != null;
   if (hasUrl === hasData) {
     throw new PikafishError('Provide exactly one of netUrl or netData.', 'NET_SOURCE_INVALID');
   }
 
   if (hasData) {
-    const source = options.netData!;
+    const source = net.data!;
     const data =
       source instanceof Uint8Array ? (source.slice().buffer as ArrayBuffer) : source.slice(0);
     return {
       workerNet: {
         kind: 'data',
         data,
-        ...(options.netSha256 ? { sha256: options.netSha256.toLowerCase() } : {}),
+        ...(net.sha256 ? { sha256: net.sha256.toLowerCase() } : {}),
       },
       transfer: [data],
     };
@@ -569,9 +582,9 @@ function resolveNet(options: PikafishOptions): ResolvedNet {
   return {
     workerNet: {
       kind: 'url',
-      url: absoluteUrl(options.netUrl!),
-      ...(options.netSha256 ? { sha256: options.netSha256.toLowerCase() } : {}),
-      cache: options.cacheNet !== false,
+      url: absoluteUrl(net.url!),
+      ...(net.sha256 ? { sha256: net.sha256.toLowerCase() } : {}),
+      cache,
     },
     transfer: [],
   };

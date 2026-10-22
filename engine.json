@@ -5,14 +5,6 @@
     "date": "2026-10-18T09:58:14+08:00"
   },
   "emsdk": "3.1.74",
-  "net": {
-    "release": "master-net",
-    "asset": "pikafish.nnue",
-    "url": "https://github.com/official-pikafish/Networks/releases/download/master-net/pikafish.nnue",
-    "size": 50241100,
-    "sha256": "bf3982711150bf2f8b49e99cd93421320f6ca914cfcf131dad5eb7f2402573ac",
-    "downloadedAt": "2026-10-19"
-  },
   "builds": {
     "threads-simd": {
       "label": "线程 + SIMD",
@@ -34,6 +26,31 @@
       "initialMemoryMB": 64,
       "maximumMemoryMB": 512,
       "pthreadPoolSize": 2
+    }
+  },
+  "engines": {
+    "strong": {
+      "label": "强力",
+      "netLabel": "官方教师网（L1=1024）",
+      "l1": 1024,
+      "net": {
+        "asset": "pikafish.nnue",
+        "url": "https://github.com/official-pikafish/Networks/releases/download/master-net/pikafish.nnue",
+        "size": 50241100,
+        "sha256": "bf3982711150bf2f8b49e99cd93421320f6ca914cfcf131dad5eb7f2402573ac",
+        "downloadedAt": "2026-10-19"
+      }
+    },
+    "lite": {
+      "label": "精简",
+      "netLabel": "蒸馏网（L1=512）",
+      "l1": 512,
+      "net": {
+        "asset": "pikafish-lite.nnue",
+        "url": "https://github.com/Maicarons/pikafish-js/releases/download/v0.2.0/pikafish-lite.nnue",
+        "size": 25136309,
+        "sha256": "ac223f6d20e8db0ec0ecf64b8955a834086e3eb329d52908c0730fdfba5dc97f"
+      }
     }
   }
 }

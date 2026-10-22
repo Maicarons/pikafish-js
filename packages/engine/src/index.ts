@@ -20,6 +20,7 @@ export type {
   EngineErrorCode,
   EngineEvent,
   EngineEventMap,
+  EngineVariant,
   GoParams,
   NetProgress,
   NetSource,

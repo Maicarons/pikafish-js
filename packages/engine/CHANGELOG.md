@@ -1,5 +1,19 @@
 # pikafish-js
 
+## 0.2.0
+
+### Minor Changes
+
+- 新增 `variants` / `variant`：把「用哪张 NNUE 权重」和「用哪套 WebAssembly 构建」捆在
+  一起选。权重是按特征宽度（`L1`）训练出来的，宽度对不上时引擎会按 arch hash 拒绝加载，
+  所以这两者不能分开配置。`engine.variant` 可以读回当前那一套的名字。
+
+  不传 `variants` 时行为与从前完全一致，顶层 `builds` 与权重的用法不变。
+
+### Patch Changes
+
+- 56e5b18: 引擎初始化完成后删除 WASM 文件系统里的 NNUE 副本，页面常驻内存少约 50 MB。引擎把网读进内存后就不再读文件（它验证网络时只比对路径），所以这份副本留着只是浪费。
+
 ## 0.1.0
 
 首个公开版本。

@@ -1,4 +1,4 @@
-// Packages the three WASM builds as individual release assets plus a
+// Packages the WASM builds as individual release assets plus a
 // SHA256SUMS file, so CI/Vercel can fetch and verify them without a tar
 // extraction step.
 import { createHash } from 'node:crypto';
@@ -9,25 +9,29 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const sourceRoot = process.argv[2] ?? join(root, 'dist', 'wasm');
 const outDir = process.argv[3] ?? join(root, 'dist', 'release');
-const builds = ['threads-simd', 'single-simd', 'single-nosimd'];
+const config = JSON.parse(await readFile(join(root, 'engine.json'), 'utf8'));
+const builds = Object.keys(config.builds);
+const engines = Object.keys(config.engines);
 
 await mkdir(outDir, { recursive: true });
 
 const sums = [];
-for (const build of builds) {
-  for (const [suffix, file] of [
-    ['pikafish.js', 'pikafish.js'],
-    ['pikafish.wasm', 'pikafish.wasm'],
-  ]) {
-    const source = join(sourceRoot, build, file);
-    const name = `${build}.${suffix}`;
-    const target = join(outDir, name);
-    await copyFile(source, target);
-    sums.push(`${await fileSha256(target)}  ${name}`);
+for (const engine of engines) {
+  for (const build of builds) {
+    for (const [suffix, file] of [
+      ['pikafish.js', 'pikafish.js'],
+      ['pikafish.wasm', 'pikafish.wasm'],
+    ]) {
+      const source = join(sourceRoot, engine, build, file);
+      const name = `${engine}-${build}.${suffix}`;
+      const target = join(outDir, name);
+      await copyFile(source, target);
+      sums.push(`${await fileSha256(target)}  ${name}`);
+    }
   }
 }
 
-const copying = join(sourceRoot, 'threads-simd', 'COPYING.txt');
+const copying = join(sourceRoot, engines[0], builds[0], 'COPYING.txt');
 await copyFile(copying, join(outDir, 'COPYING.txt')).catch(() => undefined);
 try {
   await copyFile(join(sourceRoot, 'manifest.json'), join(outDir, 'wasm-manifest.json'));

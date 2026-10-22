@@ -70,6 +70,33 @@ engine.dispose();
 
 本包不会内置 NNUE 权重，`npm publish` 的 `files` 只包含 `dist`。
 
+## 多套引擎：权重与构建必须成对
+
+权重是按**特征宽度**（`L1`）训练出来的：教师网是 L1=1024，蒸馏网是 L1=512，引擎会按
+arch hash 拒绝宽度不符的权重。所以「用哪张网」和「用哪套 wasm」不能分开选，
+`variants` 把两者捆在一起：
+
+```ts
+const engine = await createEngine({
+  variants: {
+    strong: {
+      builds: { 'single-simd': { js: '/engine/strong/single-simd/pikafish.js', wasm: '…' } },
+      netUrl: '/engine/pikafish.nnue',
+      netSha256: '…',
+    },
+    lite: {
+      builds: { 'single-simd': { js: '/engine/lite/single-simd/pikafish.js', wasm: '…' } },
+      netUrl: '/engine/pikafish-lite.nnue',
+      netSha256: '…',
+    },
+  },
+  variant: 'lite',
+});
+```
+
+不传 `variants` 时行为与从前完全一样（用顶层的 `builds` 与权重）。`engine.variant`
+读回当前那一套的名字。
+
 ## 构建
 
 包本身由 `tsup` 构建，Worker 由 `esbuild` 打包为单文件：

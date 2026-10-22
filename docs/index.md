@@ -49,8 +49,8 @@ features:
 | [快速开始](/guide/getting-started) | 准备构建产物、配置跨源隔离、创建引擎、落子，附常见错误对照表 |
 | [API 参考](/guide/api) | 两个包的完整接口、事件、错误码与示例 |
 | [部署指南](/guide/deployment) | Vercel、GitHub Pages、自托管的响应头、缓存与 CSP |
-| [常见问题](/guide/faq) | 为什么必须隔离、权重为什么 48 MB、手机与 iOS 怎么办 |
-| [基准数据](/guide/benchmarks) | 三套构建在 Chromium、Firefox、WebKit 上的实测与复现方法 |
+| [常见问题](/guide/faq) | 为什么必须隔离、两张网怎么选、手机与 iOS 怎么办 |
+| [基准数据](/guide/benchmarks) | 六套构建在 Chromium、Firefox、WebKit 上的实测与复现方法 |
 
 ## 关键数字
 
@@ -58,13 +58,14 @@ features:
 
 | 指标 | 数值 |
 | --- | --- |
-| wasm 体积 | 654–658 KB（三套构建，gzip 约 230 KB）；另需约 81 KB JS 胶水 |
-| NNUE 网络 | 47.9 MiB（官方 `master-net`，50,241,100 B，SHA-256 钉死） |
+| wasm 体积 | 654–658 KB（六套构建，gzip 约 230 KB）；另需约 81 KB JS 胶水 |
+| NNUE 网络 | 官方 `master-net` 47.9 MiB（50,241,100 B，SHA-256 钉死）；本仓库蒸馏的 L1=512 网 24.0 MiB（25,136,309 B） |
+| 首屏权重下载 | 默认蒸馏网约 24 MB；切回强力约 48 MB |
 | 4 线程搜索 | 约 1.2–1.4 MNPS（depth 22–23，3.6–4.2 M 节点） |
 | 单线程搜索 | 约 230–280 k NPS（depth 21–23）；无 SIMD 兼容构建约 38–41 k NPS |
 | 引擎初始化 | 约 0.6–1.1 s（网络已缓存） |
 | 演示站首屏 JS | 45 KB（gzip 16 KB），不含引擎与网络 |
-| 三个构建 | 都已实测跑通 `uci → position → go → bestmove`；演示站页脚“基准测试”页面可复现全部数字 |
+| 六个构建 | 都已实测跑通 `uci → position → go → bestmove`；演示站页脚“基准测试”页面可复现全部数字 |
 
 **上游与社区参考**：官方 Pikafish 仓库以 GPL-3.0 发布 C++ 源码；社区参考实现给出
 662 KB wasm、约 50 MB 网络、4 线程约 1.4 MNPS（Chromium）的量级，与本项目实测同阶。

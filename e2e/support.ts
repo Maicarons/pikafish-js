@@ -7,6 +7,7 @@ export type DemoScreen = {
   ready: boolean;
   build: string | null;
   buildChoice: string;
+  variant: string;
   fen: string;
   turn: 'w' | 'b';
   thinking: boolean;

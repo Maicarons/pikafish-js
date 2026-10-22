@@ -14,7 +14,9 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const outRoot = join(root, 'dist', 'wasm');
-const builds = ['threads-simd', 'single-simd', 'single-nosimd'];
+const config = JSON.parse(await readFile(join(root, 'engine.json'), 'utf8'));
+const builds = Object.keys(config.builds);
+const engines = Object.keys(config.engines);
 
 const args = parseArgs(process.argv.slice(2));
 const base = (
@@ -34,28 +36,32 @@ const expected = new Map(
     .map(([hash, name]) => [name, hash.toLowerCase()]),
 );
 if (!expected.size) throw new Error('SHA256SUMS is empty or malformed.');
-if (expected.size < builds.length * 2) {
-  throw new Error(`SHA256SUMS is missing builds; expected ${builds.length * 2} files.`);
+if (expected.size < builds.length * engines.length * 2) {
+  throw new Error(
+    `SHA256SUMS is missing builds; expected ${builds.length * engines.length * 2} files.`,
+  );
 }
 
-for (const build of builds) {
-  const dir = join(outRoot, build);
-  await mkdir(dir, { recursive: true });
-  for (const file of ['pikafish.js', 'pikafish.wasm']) {
-    const name = `${build}.${file}`;
-    const hash = expected.get(name);
-    if (!hash) throw new Error(`SHA256SUMS does not list ${name}`);
-    const target = join(dir, file);
-    if (!args.force && existsSync(target) && (await fileSha256(target)) === hash) {
-      console.log(`  ${name} already present and verified`);
-      continue;
+for (const engine of engines) {
+  for (const build of builds) {
+    const dir = join(outRoot, engine, build);
+    await mkdir(dir, { recursive: true });
+    for (const file of ['pikafish.js', 'pikafish.wasm']) {
+      const name = `${engine}-${build}.${file}`;
+      const hash = expected.get(name);
+      if (!hash) throw new Error(`SHA256SUMS does not list ${name}`);
+      const target = join(dir, file);
+      if (!args.force && existsSync(target) && (await fileSha256(target)) === hash) {
+        console.log(`  ${name} already present and verified`);
+        continue;
+      }
+      const bytes = await fetchBytes(`${base}/${name}`);
+      const actual = sha256(bytes);
+      if (actual !== hash)
+        throw new Error(`${name} SHA-256 mismatch: expected ${hash}, got ${actual}`);
+      await writeFile(target, bytes);
+      console.log(`  ${name} verified (${bytes.byteLength} bytes)`);
     }
-    const bytes = await fetchBytes(`${base}/${name}`);
-    const actual = sha256(bytes);
-    if (actual !== hash)
-      throw new Error(`${name} SHA-256 mismatch: expected ${hash}, got ${actual}`);
-    await writeFile(target, bytes);
-    console.log(`  ${name} verified (${bytes.byteLength} bytes)`);
   }
 }
 

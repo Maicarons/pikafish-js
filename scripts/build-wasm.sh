@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
-# Build the three Pikafish WebAssembly variants.
+# Build the Pikafish WebAssembly variants.
+#
+# There are two engine widths and three capability variants each:
+#
+#   strong  the official L1=1024 net, 50 MB
+#   lite    the distilled L1=512 net, 25 MB (see training/README.md)
+#
+# The two widths differ in exactly one line of the upstream source
+# (`nnue/nnue_architecture.h`: the `L1` constant), so the narrower engine is a
+# copy of the tree with that line rewritten.  The nets are not part of the
+# build: the engine loads one at runtime.
 #
 # Prerequisite: Emscripten 3.1.74 is active (`em++ --version`).
 # On CI use mymindstorm/setup-emsdk; locally use $EMSDK/emsdk_env.sh.
@@ -48,16 +58,8 @@ if ! grep -q "pikafish_initialize" "$src_dir/main.cpp"; then
   exit 1
 fi
 
-# Upstream's `SRCS` also matches `*.S`, but the tree's only assembly file is
-# `external/decompress/huf_decompress_amd64.S`, which is compiled only when
-# `ZSTD_ARCH_X86_AMD64` is set (never on wasm32). Compiling `*.cpp` only is
-# therefore equivalent here and avoids handing x86 asm to the wasm assembler.
-mapfile -t source_paths < <(find -L "$src_dir" \
-  \( -path '*/universal/*' -o -path '*/temp_builds/*' \) -prune -o \
-  -name '*.cpp' -print | sort)
-
 common_flags=(
-  -I"$src_dir"
+  -I"@SRC@"
   -std=c++17
   -O3
   -funroll-loops
@@ -87,30 +89,6 @@ common_flags=(
   -sASSERTIONS=0
 )
 
-build_one() {
-  local name=$1
-  local max_memory=$2
-  shift 2
-  local out="$out_root/$name"
-  mkdir -p "$out"
-  echo "Building $name -> $out"
-  "$emxx" \
-    "${source_paths[@]}" \
-    "${common_flags[@]}" \
-    -sMAXIMUM_MEMORY="$max_memory" \
-    "$@" \
-    -o "$out/pikafish.js"
-  cp "$upstream/Copying.txt" "$out/COPYING.txt"
-  printf '%s\n' "$name" > "$out/VARIANT.txt"
-}
-
-simd_flags=(
-  -DUSE_SSE2 -msse2
-  -DUSE_SSSE3 -mssse3
-  -DUSE_SSE41 -msse4.1
-  -msimd128
-)
-
 # Pikafish's ThreadPool always creates its search threads with pthread_create(),
 # so every variant needs a pool. Preallocating is required rather than optional:
 # Emscripten's on-demand worker creation from the module's main thread never
@@ -120,12 +98,85 @@ simd_flags=(
 threads_pool_flags=(-sPTHREAD_POOL_SIZE=8 -sPTHREAD_POOL_SIZE_STRICT=2)
 single_pool_flags=(-sPTHREAD_POOL_SIZE=2 -sPTHREAD_POOL_SIZE_STRICT=2)
 
-build_one threads-simd 1GB "${threads_pool_flags[@]}" "${simd_flags[@]}"
-build_one single-simd 512MB "${single_pool_flags[@]}" "${simd_flags[@]}"
-build_one single-nosimd 512MB "${single_pool_flags[@]}"
+simd_flags=(
+  -DUSE_SSE2 -msse2
+  -DUSE_SSSE3 -mssse3
+  -DUSE_SSE41 -msse4.1
+  -msimd128
+)
+
+# Upstream's `SRCS` also matches `*.S`, but the tree's only assembly file is
+# `external/decompress/huf_decompress_amd64.S`, which is compiled only when
+# `ZSTD_ARCH_X86_AMD64` is set (never on wasm32). Compiling `*.cpp` only is
+# therefore equivalent here and avoids handing x86 asm to the wasm assembler.
+source_paths_for() {
+  find -L "$1" \
+    \( -path '*/universal/*' -o -path '*/temp_builds/*' \) -prune -o \
+    -name '*.cpp' -print | sort
+}
+
+# A copy of the tree with the `L1` width rewritten.  The copy is what the
+# narrow engine is compiled from; the upstream checkout stays untouched.
+tree_for_l1() {
+  local l1=$1
+  if [ "$l1" = "1024" ]; then
+    echo "$src_dir"
+    return
+  fi
+  local copy="$out_root/../src-l1-$l1"
+  rm -rf "$copy"
+  mkdir -p "$(dirname "$copy")"
+  cp -r "$src_dir" "$copy"
+  # The objects and the net belong to the native build, not to this copy.
+  find "$copy" -maxdepth 1 -name '*.o' -delete
+  rm -f "$copy"/*.nnue
+  sed -i -E "s/^(constexpr IndexType L1 = )[0-9]+;/\1${l1};/" "$copy/nnue/nnue_architecture.h"
+  if ! grep -q "constexpr IndexType L1 = ${l1};" "$copy/nnue/nnue_architecture.h"; then
+    echo "Could not set L1 to $l1 in $copy/nnue/nnue_architecture.h" >&2
+    exit 1
+  fi
+  echo "$copy"
+}
+
+build_one() {
+  local engine=$1
+  local build=$2
+  local tree=$3
+  local max_memory=$4
+  shift 4
+  local out="$out_root/$engine/$build"
+  mkdir -p "$out"
+  echo "Building $engine/$build -> $out"
+  local sources=()
+  mapfile -t sources < <(source_paths_for "$tree")
+  local flags=()
+  for flag in "${common_flags[@]}"; do
+    flags+=("${flag//@SRC@/$tree}")
+  done
+  "$emxx" \
+    "${sources[@]}" \
+    "${flags[@]}" \
+    -sMAXIMUM_MEMORY="$max_memory" \
+    "$@" \
+    -o "$out/pikafish.js"
+  cp "$upstream/Copying.txt" "$out/COPYING.txt"
+  printf '%s\n' "$engine" > "$out/ENGINE.txt"
+}
+
+# The engines and their widths come from engine.json, so adding one is a
+# configuration change rather than a script change.
+while read -r engine l1; do
+  tree=$(tree_for_l1 "$l1")
+  build_one "$engine" threads-simd "$tree" 1GB "${threads_pool_flags[@]}" "${simd_flags[@]}"
+  build_one "$engine" single-simd "$tree" 512MB "${single_pool_flags[@]}" "${simd_flags[@]}"
+  build_one "$engine" single-nosimd "$tree" 512MB "${single_pool_flags[@]}"
+done < <(node -e "
+  const c = require('./engine.json');
+  for (const [name, e] of Object.entries(c.engines)) console.log(name, e.l1);
+")
 
 node "$root/scripts/write-wasm-manifest.mjs" "$out_root"
 
 echo
 echo "WASM builds:"
-find "$out_root" -maxdepth 2 -type f \( -name 'pikafish.js' -o -name 'pikafish.wasm' \) -printf '%p %s bytes\n' | sort
+find "$out_root" -maxdepth 3 -type f \( -name 'pikafish.js' -o -name 'pikafish.wasm' \) -printf '%p %s bytes\n' | sort

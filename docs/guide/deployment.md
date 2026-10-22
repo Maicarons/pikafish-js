@@ -69,8 +69,8 @@ Vercel 上的推荐设置：
 | Node.js | 20 或 24 |
 | 环境变量 | 通常不需要；镜像场景加 `PIKAFISH_WASM_URL` |
 
-> 首次部署会下载约 50 MB 权重。Vercel 的构建缓存对本项目帮助有限，真正的缓存发生在**浏览器**
-> 的 Cache Storage（见第 5 节）。
+> 首次部署会下载约 48 MB 权重（教师网）；演示站默认用蒸馏网，约 24 MB。Vercel 的构建缓存
+> 对本项目帮助有限，真正的缓存发生在**浏览器**的 Cache Storage（见第 5 节）。
 
 ## 3. GitHub Pages（文档 + 镜像）
 
@@ -155,7 +155,7 @@ example.com {
 | `/engine/engine.json` | `no-cache` | 升级权重/构建时要立刻生效 |
 | `/assets/**` | `immutable`, 1 年 | Vite 带 hash |
 | `/index.html` | `no-cache` | 指向新的 hash 资源 |
-| `/pikafish.nnue` | `immutable` + Cache Storage | 浏览器侧还有一层，见下 |
+| `/engine/*.nnue` | `immutable` + Cache Storage | 浏览器侧还有一层，见下 |
 
 引擎文件走 `immutable` 时，升级必须更换 URL（例如 `/engine/v0.1.0/...`），否则老用户会一直用
 旧 wasm。
