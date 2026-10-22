@@ -319,8 +319,9 @@ python training/python/test_bucket.py
    真实棋谱（若有）或更强的自对弈（`--nodes` 调大）能补上均势段的样本。
 4. **学生宽度**：`--half 384` 可以再省 25%，但 384 不是 32 的整数倍会让 `L1/2`
    成对乘积与 SIMD 填充分歧，需要先确认 `PaddedInputDimensions` 的行为。
-5. **可选**：`module.FS.unlink('/pikafish.nnue')`（`packages/engine/src/worker/runtime.ts`
-   初始化之后）可以省下约 50 MB 峰值内存。
+5. **已完成**：`module.FS.unlink('/pikafish.nnue')`（`packages/engine/src/worker/runtime.ts`
+   初始化之后）省下约 50 MB 峰值内存——引擎验证网络时只比对**路径**、不重读文件，
+   所以删掉副本是安全的（20 条 Chromium e2e 全过）。
 
 ## 风险与已知缺口
 

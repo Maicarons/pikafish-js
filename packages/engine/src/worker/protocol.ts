@@ -26,6 +26,8 @@ export type WorkerToMain =
 export interface EmscriptenModule {
   FS: {
     writeFile(path: string, data: Uint8Array): void;
+    /** Optional: only present when the Emscripten build exposes the full FS API. */
+    unlink?(path: string): void;
   };
   cwrap(
     name: string,

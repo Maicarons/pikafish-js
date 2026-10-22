@@ -97,6 +97,16 @@ export function startEngineWorker(scope: DedicatedWorkerGlobalScope): void {
     state.module = module;
     state.command = command as (line: string) => void;
     initializeEngine();
+    // The engine keeps the net in memory, so the copy inside the WASM
+    // filesystem is only needed for the load itself.  Nothing reads it again:
+    // the EvalFile option is never changed, and the engine only compares paths
+    // when it verifies the network.  Deleting it frees 50 MB of heap, which is
+    // the largest single allocation in the page.
+    try {
+      module.FS.unlink?.(NET_PATH);
+    } catch {
+      // A build without unlink keeps the copy; that is only a memory cost.
+    }
     state.ready = true;
     post({
       type: 'net-progress',

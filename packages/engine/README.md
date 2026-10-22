@@ -7,6 +7,7 @@
 - 所有构建都要求页面跨源隔离（COOP/COEP）；`single-*` 只是单线程、较小堆上限，不是无 SharedArrayBuffer 的降级路径
 - NNUE 权重支持运行时下载（Cache Storage + SHA-256 校验）或直接传入 `ArrayBuffer`
 - 运行时下载的权重不会打进本包；核心包只包含 JS 胶水与类型
+- 引擎初始化后会把 WASM 文件系统里的权重副本删掉：引擎已经把网读进内存，留着那份只是白占 50 MB
 - `analyze()` 返回可迭代的实时 `info` 流与最终 `bestmove`
 - 许可证：AGPL-3.0-or-later
 
