@@ -215,7 +215,7 @@ app.innerHTML = `
             <div><dt>置换表</dt><dd id="statHash">—</dd></div>
             <div><dt>NNUE</dt><dd id="statNet">—</dd></div>
           </dl>
-          <p id="engineNote" class="muted">首次加载需要下载约 48 MB 的 NNUE 权重，之后会优先从缓存读取。</p>
+          <p id="engineNote" class="muted">首次加载需要下载 NNUE 权重，之后会优先从缓存读取。</p>
         </section>
 
         <section class="panel">
@@ -1043,7 +1043,7 @@ function renderEngine(): void {
   }`;
   engineNote.textContent = info?.netCached
     ? 'NNUE 权重来自浏览器缓存，本次没有重新下载。'
-    : 'NNUE 权重已写入浏览器缓存，下次打开会更快。';
+    : `首次加载下载了 ${formatBytes(bytes)} 的 NNUE 权重，已写入浏览器缓存，下次打开会更快。`;
 }
 
 function renderMoveList(): void {
