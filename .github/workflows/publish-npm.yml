@@ -23,6 +23,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - name: Check NPM_TOKEN
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "::error::NPM_TOKEN is empty. Update the repository secret and re-run."
+            exit 1
+          fi
+
       # The publish script is read from main so an older tag can be published
       # without moving its tag or rebuilding its release.
       - name: Checkout the publishing tooling
