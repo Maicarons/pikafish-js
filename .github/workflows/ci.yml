@@ -84,7 +84,7 @@ jobs:
           fi
 
   wasm:
-    name: Build the three WASM variants
+    name: Build the six WASM variants
     needs: changes
     if: needs.changes.outputs.engine == 'true'
     runs-on: ubuntu-latest

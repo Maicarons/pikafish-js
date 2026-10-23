@@ -17,7 +17,7 @@
 - [ ] `npm run build`
 - [ ] `npm run test:e2e`（UI、Worker、构建相关改动必跑；说明跑了哪些浏览器）
 - [ ] `node scripts/check-links.mjs`（文档改动）
-- [ ] 三套构建手动验证（构建参数、wasm、权重相关改动）
+- [ ] 各套构建手动验证（构建参数、wasm、权重相关改动）
 
 补充说明：
 

@@ -37,7 +37,7 @@ jobs:
       - name: Unit tests
         run: npm run test
 
-      - name: Build the three WASM variants
+      - name: Build the six WASM variants
         run: npm run build:wasm
 
       - name: Package release assets

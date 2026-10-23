@@ -51,7 +51,7 @@ jobs:
       - name: Download pinned NNUE weights
         run: npm run fetch:net
 
-      - name: Build the three WASM variants
+      - name: Build the six WASM variants
         run: npm run build:wasm
 
       - name: Package release assets
