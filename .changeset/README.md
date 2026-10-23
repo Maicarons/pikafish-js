@@ -22,8 +22,14 @@ npx changeset version     # 消耗 changeset，更新版本与 CHANGELOG
 npm run build && npm run check:pack
 git commit -am "chore: release vX.Y.Z"
 git tag vX.Y.Z            # 触发 release.yml
-npm publish --provenance --workspace pikafish-js --workspace @pikafish-js/rules
 ```
+
+`release.yml` 不再直接 `npm publish`，而是把两个包提交到 npm 暂存队列；维护者在 npmjs.com 的
+Staged Packages 页面或本地执行 `npm stage approve <stage-id>`（需要 2FA）后，包才会公开。
+`latest` / `legacy` 等标签在暂存时就已固定。
+
+> `@pikafish-js/rules` 属于 npm 组织 `pikafish-js`。首次发布前必须先在 npmjs.com 创建该组织，
+> 并让 `NPM_TOKEN` 对该组织有读写权限；否则暂存会返回 `E404 Scope not found`。
 
 约定：
 
@@ -34,9 +40,9 @@ npm publish --provenance --workspace pikafish-js --workspace @pikafish-js/rules
 ## CI 发布
 
 `.github/workflows/release.yml` 在 `v*` tag 上会：跑单测、编译九套 wasm、校验体积、校验
-npm 包内容、创建/更新 GitHub Release（Release 说明取 `docs/releases/<tag>.md`），最后**如果配置了
-`NPM_TOKEN` secret** 才执行 `npm publish --provenance`。没有该 secret 时发布会跳过并留一条
-notice，不会让整个 release 失败。
+npm 包内容、创建/更新 GitHub Release（Release 说明取 `docs/releases/<tag>.md`），最后把两个包
+提交到 npm 暂存队列（`npm stage publish --provenance`）。`NPM_TOKEN` 为空时这一步会失败，
+不会静默跳过；暂存成功后还需要维护者用 2FA 批准，包才会公开。
 
 `check-pack` 会验证 `repository` 与 `publishConfig.access`，因为 provenance 签名要求前者，
 后者写错要等到发布时才报错。

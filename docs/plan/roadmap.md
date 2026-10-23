@@ -14,7 +14,7 @@
 | M3 规则与裁决 | ✅ 完成（v0.1 范围） | FEN、走法、将死/困毙/限着/重复/子力不足、中文记谱；长捉分类与 39 循环棋例留待 v0.2（当前按“循环即和、长将判负”） |
 | M4 棋盘与演示 | ✅ 完成 | SVG 棋盘、7 档难度、分析、提示、悔棋、双部署配置；`bench.html` 可测三构建 |
 | M5 稳定化 | ✅ 完成（本地） | 44 项单测、Chromium 20 项 e2e、Firefox/WebKit 冒烟全绿；`bench.yml` 周任务与 20% 回归告警已写；**尚未在真实 Actions runner 上执行** |
-| M6 发布 | 🟡 待触发 | `release.yml` 在 `v*` tag 上打包三构建并创建 Release；`check-pack` 已校验 npm 包内容；仓库尚无远端，故 tag/部署未执行 |
+| M6 发布 | 🟡 npm 待批准 | GitHub Release 与 Pages 已上线；`pikafish-js` 的 0.1.0/0.2.0/1.0.0 已进入 npm 暂存队列；`@pikafish-js/rules` 待 npm 组织创建 |
 
 > **关键实现差异 1**：Pikafish 的 `ThreadPool` 至少需要一个 pthread，因此**三套构建都要求页面跨源隔离**
 > （COOP/COEP + `SharedArrayBuffer`）。原计划中的“无隔离时自动降级到单线程”在技术上不可行；
@@ -242,7 +242,7 @@
 | `pages.yml` | push main / 手动 | 构建三构建 wasm，部署演示站（`/`）+ 文档（`/docs/`）到 GitHub Pages | < 15 分钟 |
 | `ci.yml` | PR / push main | typecheck、单测、构建（不依赖 wasm 产物） | < 5 分钟 |
 | `bench.yml` | — | **未实现**（见下） | — |
-| `release.yml` | tag `v*` | 全量测试、打包、npm 发布、GitHub Release | < 20 分钟 |
+| `release.yml` | tag `v*` | 全量测试、打包、npm 暂存发布（待 2FA 批准）、GitHub Release | < 20 分钟 |
 
 > **关于 `bench.yml`**：计划中的自动基准工作流没有实现。原因是它的两个用途都已由更可靠的方式覆盖：
 > 绝对性能只能在真实设备上测量，GitHub Runner 的噪声使其无法作为发布依据（计划本身也只把它当
@@ -341,16 +341,16 @@ jobs:
 3. changeset version → 生成 CHANGELOG
 4. 构建产物 → 生成 SHA256SUMS
 5. git tag v0.1.0 → release.yml
-6. npm publish --provenance
+6. npm stage publish --provenance → 维护者 2FA 批准
 7. GitHub Release 上传三构建 wasm/js/checksums/source 说明
 8. 部署演示站（Vercel + Pages）→ 公告
 9. 观察 72 小时 issue / 崩溃报告
 ```
 
-> **自动化程度（v0.1）**：第 2、4、5、6、7 步已写入 `.github/workflows/release.yml`——单测、体积预算、
-> 打包与 `SHA256SUMS`、创建/更新 Release（说明取自 `docs/releases/<tag>.md`）、`npm publish
-> --provenance`（需要 `NPM_TOKEN`，未配置则跳过并留 notice）。第 1、3 步仍是人工：冻结代码、
-> 跑 `npx changeset version`。第 8、9 步依赖真实域名与时间，尚未执行。
+> **自动化程度（v1.0）**：第 2、4、5、6、7 步已写入 `.github/workflows/release.yml`——单测、体积预算、
+> 打包与 `SHA256SUMS`、创建/更新 Release（说明取自 `docs/releases/<tag>.md`）、`npm stage publish
+> --provenance`（需要 `NPM_TOKEN`，为空时直接失败）。暂存不会公开包；维护者需在 npmjs.com 用 2FA
+> 批准。第 1、3 步仍是人工：冻结代码、跑 `npx changeset version`。第 8、9 步依赖真实域名与时间。
 
 ### 6.1 发布清单
 
