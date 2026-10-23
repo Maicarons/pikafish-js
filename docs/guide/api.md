@@ -86,8 +86,7 @@ const engine = await createEngine({
 （用顶层的 `builds` 与权重）。`engine.variant` 可以读回当前用的那一套的名字。
 
 演示站自己就是这层配置的使用者：它把 `engine.json` 里的清单原样喂给 `variants`，网络
-选择器列出 `strong`、`lite`、`w256`、`w192`、`w128`、`w64` 六套，按需要连同 wasm 一起
-切换。
+选择器列出 `strong`、`lite`、`w256` 三套，按需要连同 wasm 一起切换。
 
 ### `PikafishEngine`
 

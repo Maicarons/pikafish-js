@@ -40,9 +40,6 @@ public/engine/
 │   └── {threads-simd,single-simd,single-nosimd}/{pikafish.js,pikafish.wasm}
 ├── lite/
 ├── w256/
-├── w192/
-├── w128/
-└── w64/
 ```
 
 `SHA256SUMS` 在发布页上，可用 `sha256sum -c SHA256SUMS` 复核。
@@ -56,7 +53,7 @@ npm ci
 # 2. 下载并校验固定版本的权重
 npm run fetch:net
 
-# 3. 编译十八套构建（六套引擎 × 三种能力，需要已激活的 Emscripten 3.1.74）
+# 3. 编译九套构建（三套引擎 × 三种能力，需要已激活的 Emscripten 3.1.74）
 npm run build:wasm
 
 # 4. 生成带 SHA256SUMS 的发布目录 dist/release

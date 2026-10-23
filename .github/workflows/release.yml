@@ -84,9 +84,12 @@ jobs:
         run: |
           if [ -n "$NPM_TOKEN" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
+            # Length only: enough to tell "not set" from "set to something
+            # empty", which is what a paste that missed looks like.
+            echo "::notice::NPM_TOKEN is set (${#NPM_TOKEN} characters); publishing."
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::NPM_TOKEN is not set; skipping the npm publish step."
+            echo "::warning::NPM_TOKEN resolves to an empty value; skipping the npm publish step."
           fi
 
       - name: Publish the packages

@@ -43,14 +43,14 @@ test('@smoke 精简引擎可以加载并完成一次搜索', async ({ page }) =>
   expect(state?.turn).toBe('w');
 });
 
-test('@smoke 最小引擎（L1=64）可以加载并完成一次搜索', async ({ page }) => {
+test('@smoke 最小引擎（L1=256）可以加载并完成一次搜索', async ({ page }) => {
   const { engines } = await manifest(page);
-  const small = engines.w64;
-  test.skip(!small, 'this build has no L1=64 net');
+  const small = engines.w256;
+  test.skip(!small, 'this build has no L1=256 net');
 
-  await page.goto('/?variant=w64');
+  await page.goto('/?variant=w256');
   const ready = await waitForReady(page);
-  expect(ready.variant).toBe('w64');
+  expect(ready.variant).toBe('w256');
   expect(ready.engineInfo?.netBytes).toBe(small.net.size);
   await expect(page.locator('#errorBanner')).toBeHidden();
 

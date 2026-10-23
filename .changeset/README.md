@@ -33,7 +33,7 @@ npm publish --provenance --workspace pikafish-js --workspace @pikafish-js/rules
 
 ## CI 发布
 
-`.github/workflows/release.yml` 在 `v*` tag 上会：跑单测、编译十八套 wasm、校验体积、校验
+`.github/workflows/release.yml` 在 `v*` tag 上会：跑单测、编译九套 wasm、校验体积、校验
 npm 包内容、创建/更新 GitHub Release（Release 说明取 `docs/releases/<tag>.md`），最后**如果配置了
 `NPM_TOKEN` secret** 才执行 `npm publish --provenance`。没有该 secret 时发布会跳过并留一条
 notice，不会让整个 release 失败。

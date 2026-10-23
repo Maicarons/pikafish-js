@@ -2,8 +2,8 @@
 # Build the Pikafish WebAssembly variants.
 #
 # The engines and their feature widths come from `engine.json`; each one is
-# built in three capability variants.  Today that is six engines (L1=1024 down
-# to L1=64) and eighteen builds.  The distilled weights behind the narrow
+# built in three capability variants.  Today that is three engines (L1=1024,
+# 512 and 256) and nine builds.  The distilled weights behind the narrow
 # engines are described in training/README.md.
 #
 # A width is compiled in because it is a constant in the upstream source, and
@@ -12,6 +12,10 @@
 # (`nnue/nnue_architecture.h`: the `L1` constant), so a narrower engine is a
 # copy of the tree with that line rewritten.  The nets are not part of the
 # build: the engine loads one at runtime.
+#
+# Not every width compiles for wasm: without AVX512 the upstream sparse-input
+# layer asserts `InputDimensions % 256 == 0`, so L1 must be a multiple of 256
+# here (192, 128 and 64 build natively but not under Emscripten).
 #
 # Prerequisite: Emscripten 3.1.74 is active (`em++ --version`).
 # On CI use mymindstorm/setup-emsdk; locally use $EMSDK/emsdk_env.sh.
