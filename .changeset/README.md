@@ -4,8 +4,9 @@
 
 ## 当前状态
 
-`1.0.0` 是当前发布版本（`pikafish-js` 与 `@pikafish-js/rules`），版本号已经写在两个包的
-`package.json` 里，因此**没有待处理的 changeset**；对应的记录直接放在各包的 `CHANGELOG.md`。
+`1.0.0` 是当前发布版本（`pikafish-js` 与 `@pikafish-js/rules`），已发布到 npm，`latest` 指向
+1.0.0。版本号已经写在两个包的 `package.json` 里，因此**没有待处理的 changeset**；对应的记录
+直接放在各包的 `CHANGELOG.md`。
 
 ## 从 1.0.1 开始
 

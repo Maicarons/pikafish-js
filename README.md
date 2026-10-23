@@ -2,8 +2,8 @@
 
 在浏览器中运行 [Pikafish](https://github.com/official-pikafish/Pikafish) 中国象棋引擎的前端 monorepo：纯前端人机对弈、本地局面分析，引擎以 WebAssembly 运行在专用 Worker 中，不上传任何棋局数据。
 
-> 当前状态：**v1.0.0 已发布**；npm 两个包的五个版本已进入暂存队列，待维护者 2FA 批准。
-> 在线演示 <https://maicarons.github.io/pikafish-js/>，文档
+> 当前状态：**v1.0.0 已发布**，`pikafish-js` 与 `@pikafish-js/rules` 也已发布到 npm
+> （`latest` 指向 1.0.0）。在线演示 <https://maicarons.github.io/pikafish-js/>，文档
 > <https://maicarons.github.io/pikafish-js/docs/>。三套构建已在 Chromium 中实测跑通完整 UCI
 > 流程（4 线程 1.21–1.39 MNPS），数字与复现方法见[系统架构](docs/plan/architecture.md) 第 13 节。
 
