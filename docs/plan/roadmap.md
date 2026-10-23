@@ -14,7 +14,7 @@
 | M3 规则与裁决 | ✅ 完成（v0.1 范围） | FEN、走法、将死/困毙/限着/重复/子力不足、中文记谱；长捉分类与 39 循环棋例留待 v0.2（当前按“循环即和、长将判负”） |
 | M4 棋盘与演示 | ✅ 完成 | SVG 棋盘、7 档难度、分析、提示、悔棋、双部署配置；`bench.html` 可测三构建 |
 | M5 稳定化 | ✅ 完成（本地） | 44 项单测、Chromium 20 项 e2e、Firefox/WebKit 冒烟全绿；`bench.yml` 周任务与 20% 回归告警已写；**尚未在真实 Actions runner 上执行** |
-| M6 发布 | 🟡 npm 待批准 | GitHub Release 与 Pages 已上线；`pikafish-js` 的 0.1.0/0.2.0/1.0.0 已进入 npm 暂存队列；`@pikafish-js/rules` 待 npm 组织创建 |
+| M6 发布 | 🟡 npm 待批准 | GitHub Release 与 Pages 已上线；两个包的五个版本（引擎 0.1.0/0.2.0/1.0.0、规则 0.1.0/1.0.0）都已进入 npm 暂存队列，等待维护者 2FA 批准 |
 
 > **关键实现差异 1**：Pikafish 的 `ThreadPool` 至少需要一个 pthread，因此**三套构建都要求页面跨源隔离**
 > （COOP/COEP + `SharedArrayBuffer`）。原计划中的“无隔离时自动降级到单线程”在技术上不可行；

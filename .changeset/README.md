@@ -28,8 +28,8 @@ git tag vX.Y.Z            # 触发 release.yml
 Staged Packages 页面或本地执行 `npm stage approve <stage-id>`（需要 2FA）后，包才会公开。
 `latest` / `legacy` 等标签在暂存时就已固定。
 
-> `@pikafish-js/rules` 属于 npm 组织 `pikafish-js`。首次发布前必须先在 npmjs.com 创建该组织，
-> 并让 `NPM_TOKEN` 对该组织有读写权限；否则暂存会返回 `E404 Scope not found`。
+> `@pikafish-js/rules` 属于 npm 组织 `pikafish-js`。`NPM_TOKEN` 必须对该组织有读写权限，
+> 否则暂存会返回 `E404 Scope not found`（首次发布时就因组织尚未创建而失败过）。
 
 约定：
 
