@@ -55,7 +55,7 @@
     "test": "vitest run --root ../.. packages/engine"
   },
   "devDependencies": {
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.28.2",
     "tsup": "^8.5.0",
     "typescript": "^5.9.0",
     "vitest": "^5.0.5"
