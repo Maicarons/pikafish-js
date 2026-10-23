@@ -43,6 +43,28 @@ test('@smoke 精简引擎可以加载并完成一次搜索', async ({ page }) =>
   expect(state?.turn).toBe('w');
 });
 
+test('@smoke 最小引擎（L1=64）可以加载并完成一次搜索', async ({ page }) => {
+  const { engines } = await manifest(page);
+  const small = engines.w64;
+  test.skip(!small, 'this build has no L1=64 net');
+
+  await page.goto('/?variant=w64');
+  const ready = await waitForReady(page);
+  expect(ready.variant).toBe('w64');
+  expect(ready.engineInfo?.netBytes).toBe(small.net.size);
+  await expect(page.locator('#errorBanner')).toBeHidden();
+
+  await page.selectOption('#difficulty', '2');
+  await playCannonPage(page);
+  await waitForPlies(page, 1);
+  await waitForIdle(page);
+  await waitForPlies(page, 2);
+
+  const state = await screen(page);
+  expect(state?.history[0]).toBe('b2e2');
+  expect(state?.turn).toBe('w');
+});
+
 test('@smoke 默认使用精简引擎，并可以用链接切回强力', async ({ page }) => {
   const { engines } = await manifest(page);
   test.skip(!engines.lite, 'this build has no distilled net');

@@ -46,7 +46,7 @@ Cross-Origin-Embedder-Policy: require-corp
 
 构建流程 `scripts/vercel-build.mjs`：
 
-1. `fetch-wasm.mjs`：从发布产物下载三套构建，用 `SHA256SUMS` 逐个校验；
+1. `fetch-wasm.mjs`：从发布产物下载各套构建，用 `SHA256SUMS` 逐个校验；
 2. `fetch-net.mjs`：下载权重并校验 SHA-256；
 3. `assemble-demo.mjs`：放进 `apps/demo/public/engine/`；
 4. 构建 rules、engine、demo 与文档，并把文档挂到 `/docs/`。
@@ -91,7 +91,7 @@ apps/demo/src/isolation.ts              # 注册、接管、只刷新一次
 
 工作流程（`.github/workflows/pages.yml`）：
 
-1. 安装 Emscripten 3.1.74，**从源码编译**三套构建（可复现）；
+1. 安装 Emscripten 3.1.74，**从源码编译**六套引擎 × 三种能力共十八套构建（可复现）；
 2. 下载校验权重，`assemble:demo`；
 3. `VITE_BASE=/<repo>/ DOCS_BASE=/<repo>/docs/` 构建演示站与文档；
 4. 文档产物挂到 `apps/demo/dist/docs/`，整体作为 Pages 产物发布。
@@ -204,7 +204,8 @@ typeof SharedArrayBuffer; // "function"
 - [ ] 响应头含 COOP/COEP：`curl -I https://你的域名/`
 - [ ] 控制台无 CSP 违规
 - [ ] 首次加载显示权重进度，刷新后 `netCached === true`
-- [ ] 三套构建都能加载（`?build=threads-simd` 等）
+- [ ] 三种能力构建都能加载（`?build=threads-simd` 等）
+- [ ] 六套网络都能加载（`?variant=strong|lite|w256|w192|w128|w64`）
 - [ ] 关掉网络后刷新仍能开局（权重已缓存）
 - [ ] 手机 Safari 用 `single-simd` 可以完整下一局
 

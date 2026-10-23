@@ -47,9 +47,53 @@
       "l1": 512,
       "net": {
         "asset": "pikafish-lite.nnue",
-        "url": "https://github.com/Maicarons/pikafish-js/releases/download/v0.2.0/pikafish-lite.nnue",
+        "url": "https://github.com/Maicarons/pikafish-js/releases/download/networks/pikafish-lite.nnue",
         "size": 25136309,
         "sha256": "ac223f6d20e8db0ec0ecf64b8955a834086e3eb329d52908c0730fdfba5dc97f"
+      }
+    },
+    "w256": {
+      "label": "轻量",
+      "netLabel": "蒸馏网（L1=256）",
+      "l1": 256,
+      "net": {
+        "asset": "pikafish-w256.nnue",
+        "url": "https://github.com/Maicarons/pikafish-js/releases/download/networks/pikafish-w256.nnue",
+        "size": 12646031,
+        "sha256": "316da3939d66edacc730a313a1bdddb0619ad1b8158b1dc5bd8244af335c552b"
+      }
+    },
+    "w192": {
+      "label": "迷你",
+      "netLabel": "蒸馏网（L1=192）",
+      "l1": 192,
+      "net": {
+        "asset": "pikafish-w192.nnue",
+        "url": "https://github.com/Maicarons/pikafish-js/releases/download/networks/pikafish-w192.nnue",
+        "size": 9509290,
+        "sha256": "dfa82541137d50ea3744b1f314b63b18d27a5e3945066bb6d99aff74b9eb9181"
+      }
+    },
+    "w128": {
+      "label": "微型",
+      "netLabel": "蒸馏网（L1=128）",
+      "l1": 128,
+      "net": {
+        "asset": "pikafish-w128.nnue",
+        "url": "https://github.com/Maicarons/pikafish-js/releases/download/networks/pikafish-w128.nnue",
+        "size": 6368708,
+        "sha256": "9a12abc8f6ca35a9c1de0895e67b68f40688d62d6673bf120e563e297e4021db"
+      }
+    },
+    "w64": {
+      "label": "极简",
+      "netLabel": "蒸馏网（L1=64）",
+      "l1": 64,
+      "net": {
+        "asset": "pikafish-w64.nnue",
+        "url": "https://github.com/Maicarons/pikafish-js/releases/download/networks/pikafish-w64.nnue",
+        "size": 3221603,
+        "sha256": "b7ebbdbd8c6812d7d26d95f956b0347990b225e2896246304b643308726ec24e"
       }
     }
   }

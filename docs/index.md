@@ -49,8 +49,8 @@ features:
 | [快速开始](/guide/getting-started) | 准备构建产物、配置跨源隔离、创建引擎、落子，附常见错误对照表 |
 | [API 参考](/guide/api) | 两个包的完整接口、事件、错误码与示例 |
 | [部署指南](/guide/deployment) | Vercel、GitHub Pages、自托管的响应头、缓存与 CSP |
-| [常见问题](/guide/faq) | 为什么必须隔离、两张网怎么选、手机与 iOS 怎么办 |
-| [基准数据](/guide/benchmarks) | 六套构建在 Chromium、Firefox、WebKit 上的实测与复现方法 |
+| [常见问题](/guide/faq) | 为什么必须隔离、六张网怎么选、手机与 iOS 怎么办 |
+| [基准数据](/guide/benchmarks) | 各套构建在 Chromium、Firefox、WebKit 上的实测与复现方法 |
 
 ## 关键数字
 
@@ -58,9 +58,9 @@ features:
 
 | 指标 | 数值 |
 | --- | --- |
-| wasm 体积 | 654–658 KB（六套构建，gzip 约 230 KB）；另需约 81 KB JS 胶水 |
-| NNUE 网络 | 官方 `master-net` 47.9 MiB（50,241,100 B，SHA-256 钉死）；本仓库蒸馏的 L1=512 网 24.0 MiB（25,136,309 B） |
-| 首屏权重下载 | 默认蒸馏网约 24 MB；切回强力约 48 MB |
+| wasm 体积 | 单套 654–658 KB（gzip 约 230 KB），另需约 81 KB JS 胶水；十八套合计约 12 MB，每次只下载选中的那套 |
+| NNUE 网络 | 官方 `master-net` 47.9 MiB（50,241,100 B）；本仓库蒸馏的 L1=512 网 24.0 MiB（25,136,309 B），另有 L1=256/192/128/64 四档（12.6/9.5/6.4/3.2 MB），哈希全部钉死 |
+| 首屏权重下载 | 默认蒸馏网约 24 MB；切回强力约 48 MB；最小的 L1=64 网约 3 MB |
 | 4 线程搜索 | 约 1.2–1.4 MNPS（depth 22–23，3.6–4.2 M 节点） |
 | 单线程搜索 | 约 230–280 k NPS（depth 21–23）；无 SIMD 兼容构建约 38–41 k NPS |
 | 引擎初始化 | 约 0.6–1.1 s（网络已缓存） |

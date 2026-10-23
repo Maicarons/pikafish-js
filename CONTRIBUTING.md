@@ -61,7 +61,7 @@ docs                中文文档            VitePress，纳管到 sidebar 才可
 | 规则、裁决、记谱 | 单测；边界输入（非法 FEN、非法着法、重复局面） |
 | Worker 协议、权重加载 | 对应 e2e；失败路径（404、哈希不符、缓存损坏） |
 | 演示站 UI | e2e；键盘可达性与 `aria` 不被破坏 |
-| 构建参数 | 三套构建全部重编，更新 `engine.json` 的体积与 `.md` 里的实测数据 |
+| 构建参数 | 各套构建全部重编（`engine.json` 里的每套引擎 × 每种能力），更新 `engine.json` 的体积与 `.md` 里的实测数据 |
 | 文档 | `node scripts/check-links.mjs` 通过；新页面加入 sidebar |
 
 ### 上游补丁
@@ -74,7 +74,7 @@ docs                中文文档            VitePress，纳管到 sidebar 才可
 
 1. 改 `engine.json` 的 `upstream.commit`；
 2. 重新生成补丁并确认只包含入口改动；
-3. 重跑三套构建、规则回归、基准与浏览器冒烟；
+3. 重跑各套构建、规则回归、基准与浏览器冒烟；
 4. 更新 `NOTICE` 与文档里的版本号。
 
 ## 代码风格

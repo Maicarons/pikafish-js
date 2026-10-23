@@ -91,11 +91,12 @@ interface EngineManifest {
 
 // The engine variant picks the weights, and with them the WebAssembly build:
 // a net is only valid for the width it was trained for.  `strong` is the
-// official 50 MB net, `lite` the distilled 25 MB one.
+// official 50 MB net; the others are distilled at narrower widths, down to the
+// 3 MB `w64`.
 //
-// The distilled net is the default: it is half the download and about a
-// hundred Elo behind, which no human player will ever notice.  `?variant=`
-// wins over the stored preference so a link (or a test) can pin it.
+// `lite` is the default: it is half the download and about 158 Elo behind,
+// which no human player will ever notice.  `?variant=` wins over the stored
+// preference so a link (or a test) can pin it.
 type VariantChoice = string;
 
 function resolveVariantChoice(available: string[]): VariantChoice {

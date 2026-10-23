@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Build the Pikafish WebAssembly variants.
 #
-# There are two engine widths and three capability variants each:
+# The engines and their feature widths come from `engine.json`; each one is
+# built in three capability variants.  Today that is six engines (L1=1024 down
+# to L1=64) and eighteen builds.  The distilled weights behind the narrow
+# engines are described in training/README.md.
 #
-#   strong  the official L1=1024 net, 50 MB
-#   lite    the distilled L1=512 net, 25 MB (see training/README.md)
-#
-# The two widths differ in exactly one line of the upstream source
-# (`nnue/nnue_architecture.h`: the `L1` constant), so the narrower engine is a
+# A width is compiled in because it is a constant in the upstream source, and
+# a network only loads in an engine of the same width, so every engine gets its
+# own builds.  The widths differ in exactly one line of the upstream source
+# (`nnue/nnue_architecture.h`: the `L1` constant), so a narrower engine is a
 # copy of the tree with that line rewritten.  The nets are not part of the
 # build: the engine loads one at runtime.
 #

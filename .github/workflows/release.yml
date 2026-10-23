@@ -13,7 +13,7 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -37,7 +37,7 @@ jobs:
       - name: Unit tests
         run: npm run test
 
-      - name: Build the six WASM variants
+      - name: Build the WASM variants
         run: npm run build:wasm
 
       - name: Package release assets

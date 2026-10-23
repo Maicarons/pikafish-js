@@ -17,9 +17,9 @@ const BUDGETS = [
   { match: (name) => name.endsWith('.js'), label: 'JS glue', maxBytes: 150 * 1024 },
 ];
 
-// Six variants now (two engine widths, three capability builds each), the
-// largest of which is under 0.7 MB today.
-const TOTAL_MAX_BYTES = 7 * 1024 * 1024;
+// Eighteen variants now (six engine widths, three capability builds each),
+// about 0.7 MB per wasm+js pair.
+const TOTAL_MAX_BYTES = 14 * 1024 * 1024;
 
 const args = process.argv.slice(2);
 const dirIndex = args.indexOf('--dir');

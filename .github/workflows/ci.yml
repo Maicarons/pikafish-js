@@ -46,7 +46,7 @@ jobs:
         run: npm run docs:build
 
   changes:
-    # The WASM build needs Emscripten and about ten minutes; the browser matrix
+    # The WASM build needs Emscripten and about twenty minutes; the browser matrix
     # needs the WASM build. Both are skipped on pull requests that cannot affect
     # the engine, so ordinary documentation or demo-copy changes stay fast.
     name: Decide whether the engine jobs are needed
@@ -84,11 +84,11 @@ jobs:
           fi
 
   wasm:
-    name: Build the six WASM variants
+    name: Build the WASM variants
     needs: changes
     if: needs.changes.outputs.engine == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -111,7 +111,7 @@ jobs:
       - name: Download pinned NNUE weights
         run: npm run fetch:net
 
-      - name: Build WASM (threads+SIMD, single+SIMD, single+no-SIMD)
+      - name: Build WASM (six widths × three capability builds)
         run: npm run build:wasm
 
       - name: Package release assets

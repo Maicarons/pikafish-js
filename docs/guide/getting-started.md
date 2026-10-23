@@ -28,20 +28,24 @@
 
 ### 方案 A：使用发布产物（先跑通）
 
-从 GitHub Release 下载 `pikafish-wasm-v0.1.0.zip`，解压后目录结构如下：
+Release 里是逐个文件，不是压缩包：`<引擎>-<构建>.pikafish.js` 与 `.wasm`（例如
+`strong-threads-simd.pikafish.wasm`），外加 `wasm-manifest.json` 与 `SHA256SUMS`。按下面
+的结构放进演示站的 `public/engine/`：
 
 ```text
 public/engine/
-├── engine.json                 # 构建清单（三套构建的 URL 与字节数）
-├── pikafish.nnue               # 50,241,100 字节权重
-├── single-nosimd/
-│   ├── pikafish.js
-│   └── pikafish.wasm
-├── single-simd/
-└── threads-simd/
+├── engine.json                 # 清单：每套引擎的构建、权重 URL 与字节数
+├── pikafish*.nnue              # 六张权重（strong 用官方教师网）
+├── strong/
+│   └── {threads-simd,single-simd,single-nosimd}/{pikafish.js,pikafish.wasm}
+├── lite/
+├── w256/
+├── w192/
+├── w128/
+└── w64/
 ```
 
-`SHA256SUMS` 在压缩包根目录，可用 `sha256sum -c SHA256SUMS` 复核。
+`SHA256SUMS` 在发布页上，可用 `sha256sum -c SHA256SUMS` 复核。
 
 ### 方案 B：从源码构建（可复现）
 
@@ -52,7 +56,7 @@ npm ci
 # 2. 下载并校验固定版本的权重
 npm run fetch:net
 
-# 3. 编译三套构建（需要已激活的 Emscripten 3.1.74）
+# 3. 编译十八套构建（六套引擎 × 三种能力，需要已激活的 Emscripten 3.1.74）
 npm run build:wasm
 
 # 4. 生成带 SHA256SUMS 的发布目录 dist/release

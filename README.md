@@ -41,9 +41,10 @@ npm run assemble:demo
 npm run dev
 ```
 
-`npm run fetch:net` 会按 `engine.json` 下载**两张**网：官方教师网（L1=1024，50 MB）与
-本仓库蒸馏的精简网（L1=512，25 MB）。精简网随 v0.2.0 发布提供，发布之前拿不到时脚本
-会跳过它，演示站就只带强力引擎。
+`npm run fetch:net` 会按 `engine.json` 下载**六张**网：官方教师网（L1=1024，50 MB）与
+本仓库蒸馏的五张（L1=512 / 256 / 192 / 128 / 64，25 / 12.6 / 9.5 / 6.4 / 3.2 MB）。
+蒸馏网放在仓库自己的 `networks` release 里，拿不到时脚本会跳过对应引擎，演示站只带能凑齐
+的那几套。
 
 `npm run dev` 会先构建 rules 与 engine 包，再启动 Vite。Vite 开发服务器已经设置 COOP/COEP 响应头，因此多线程构建可用。
 
@@ -83,8 +84,9 @@ wasm/NNUE。若同时有 `npm run dev` 或浏览器正在使用这些文件，Wi
 > 三套构建都**预分配** pthread 池：池为空时 Emscripten 的按需创建会挂起，
 > 引擎初始化永远不返回（实测）。
 >
-> 上面三套构建各做**两张网**：`strong` 用官方教师网（L1=1024，50 MB），`lite` 用本仓库
-> 蒸馏的精简网（L1=512，25 MB）。权重按特征宽度训练，宽度对不上时引擎会按 arch hash
+> 上面三套构建各做**六套引擎**：`strong` 用官方教师网（L1=1024，50 MB），`lite` 用
+> 本仓库蒸馏的精简网（L1=512，25 MB），再往下还有 L1=256 / 192 / 128 / 64 四档
+> （12.6 / 9.5 / 6.4 / 3.2 MB）。权重按特征宽度训练，宽度对不上时引擎会按 arch hash
 > 拒绝加载，所以网与构建必须成对切换。
 
 ## 基准测试
@@ -107,7 +109,7 @@ wasm 的环境，因此这些数字由页面而非 Node 脚本产出；`docs/` �
 
 - **Vercel（主演示）**：`vercel.json` 设置 COOP/COEP，构建脚本 `scripts/vercel-build.mjs` 会下载发布资源、组装演示与文档，输出到 `apps/demo/dist`。需要先发布一次 WASM release。
 - **GitHub Pages**：`.github/workflows/pages.yml` 用 `setup-emsdk` 现场构建 WASM，演示站挂在根路径，文档挂在 `/docs/`，并用 `coi-serviceworker.js` 注入 COOP/COEP。
-- **Release**：`.github/workflows/release.yml` 在 `v*` tag 上构建并上传 `SHA256SUMS` 与三套构建资源；Vercel 通过 `PIKAFISH_WASM_URL` 指定下载地址。
+- **Release**：`.github/workflows/release.yml` 在 `v*` tag 上构建并上传 `SHA256SUMS` 与各套构建资源；Vercel 通过 `PIKAFISH_WASM_URL` 指定下载地址。
 
 ## 许可证与来源
 

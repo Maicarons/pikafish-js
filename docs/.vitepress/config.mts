@@ -25,6 +25,7 @@ const project = {
     { text: '复盘：v0.1.0', link: '/retrospective' },
     { text: '发布说明：v0.1.0', link: '/releases/v0.1.0' },
     { text: '发布说明：v0.2.0', link: '/releases/v0.2.0' },
+    { text: '发布说明：v1.0.0', link: '/releases/v1.0.0' },
   ],
 };
 
