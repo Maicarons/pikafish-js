@@ -54,6 +54,10 @@ jobs:
           cache-dependency-path: source/package-lock.json
           registry-url: https://registry.npmjs.org
 
+      # `npm stage publish` needs npm >= 11.15.0.
+      - name: Use an npm CLI with staged publishing
+        run: npm install --global npm@11.21.1
+
       - name: Install dependencies
         working-directory: source
         run: npm ci
@@ -72,7 +76,7 @@ jobs:
         working-directory: source
         run: npm run check:pack
 
-      - name: Publish
+      - name: Stage the packages
         working-directory: source
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -82,4 +86,25 @@ jobs:
             echo "::error::NPM_TOKEN is empty. Update the repository secret and re-run."
             exit 1
           fi
-          node ../tooling/scripts/publish-npm.mjs "$DIST_TAG"
+          node ../tooling/scripts/publish-npm.mjs --stage "$DIST_TAG"
+
+      - name: Summarize the staged versions
+        if: always()
+        continue-on-error: true
+        working-directory: source
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            exit 0
+          fi
+          {
+            echo "## Staged npm versions"
+            echo
+            echo "Approve them with 2FA on npmjs.com (Staged Packages) or with \`npm stage approve <id>\`."
+            echo
+            echo '```'
+            npm stage list pikafish-js
+            npm stage list "@pikafish-js/rules"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

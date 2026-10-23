@@ -25,6 +25,10 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
 
+      # `npm stage publish` needs npm >= 11.15.0.
+      - name: Use an npm CLI with staged publishing
+        run: npm install --global npm@11.21.1
+
       - name: Setup Emscripten 3.1.74
         uses: mymindstorm/setup-emsdk@v14
         with:
@@ -77,12 +81,32 @@ jobs:
               "${notes_args[@]}"
           fi
 
-      - name: Publish the packages
+      - name: Stage the packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::error::NPM_TOKEN is empty. The GitHub Release was created, but nothing was published to npm. Set the secret and run the Publish npm packages workflow for ${GITHUB_REF_NAME}."
+            echo "::error::NPM_TOKEN is empty. The GitHub Release was created, but nothing was staged for npm. Set the secret and run the Publish npm packages workflow for ${GITHUB_REF_NAME}."
             exit 1
           fi
-          node scripts/publish-npm.mjs latest
+          node scripts/publish-npm.mjs --stage latest
+
+      - name: Summarize the staged versions
+        if: always()
+        continue-on-error: true
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            exit 0
+          fi
+          {
+            echo "## Staged npm versions"
+            echo
+            echo "Approve them with 2FA on npmjs.com (Staged Packages) or with \`npm stage approve <id>\`."
+            echo
+            echo '```'
+            npm stage list pikafish-js
+            npm stage list "@pikafish-js/rules"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
