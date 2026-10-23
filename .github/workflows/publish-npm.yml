@@ -1,0 +1,76 @@
+name: Publish npm packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git tag or commit to publish from
+        required: true
+        type: string
+      dist_tag:
+        description: npm dist-tag (use latest for the current release)
+        required: true
+        default: latest
+        type: string
+
+permissions:
+  contents: read
+  # npm provenance signs the attestation with the workflow's OIDC token.
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # The publish script is read from main so an older tag can be published
+      # without moving its tag or rebuilding its release.
+      - name: Checkout the publishing tooling
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          path: tooling
+
+      - name: Checkout the package source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+          path: source
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        working-directory: source
+        run: npm ci
+
+      - name: Unit tests
+        working-directory: source
+        run: npm run test
+
+      - name: Build the packages
+        working-directory: source
+        run: |
+          npm run build:rules
+          npm run build:engine
+
+      - name: Check what would be published
+        working-directory: source
+        run: npm run check:pack
+
+      - name: Publish
+        working-directory: source
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DIST_TAG: ${{ inputs.dist_tag }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::NPM_TOKEN is empty. Update the repository secret and re-run."
+            exit 1
+          fi
+          node ../tooling/scripts/publish-npm.mjs "$DIST_TAG"

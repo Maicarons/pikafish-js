@@ -77,36 +77,12 @@ jobs:
               "${notes_args[@]}"
           fi
 
-      - name: Check whether npm publishing is configured
-        id: npm
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -n "$NPM_TOKEN" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-            # Length only: enough to tell "not set" from "set to something
-            # empty", which is what a paste that missed looks like.
-            echo "::notice::NPM_TOKEN is set (${#NPM_TOKEN} characters); publishing."
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::NPM_TOKEN resolves to an empty value; skipping the npm publish step."
-          fi
-
       - name: Publish the packages
-        if: steps.npm.outputs.enabled == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          version=$(node -p "require('./packages/engine/package.json').version")
-          publish() {
-            local workspace=$1 name=$2
-            if npm view "${name}@${version}" version >/dev/null 2>&1; then
-              echo "${name}@${version} is already on npm; leaving it alone."
-            else
-              npm publish --provenance --access public --workspace "$workspace"
-            fi
-          }
-          # Rules first: the engine package does not depend on it, but a consumer
-          # reading the release notes may install both.
-          publish @pikafish-js/rules @pikafish-js/rules
-          publish pikafish-js pikafish-js
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::NPM_TOKEN is empty. The GitHub Release was created, but nothing was published to npm. Set the secret and run the Publish npm packages workflow for ${GITHUB_REF_NAME}."
+            exit 1
+          fi
+          node scripts/publish-npm.mjs latest
