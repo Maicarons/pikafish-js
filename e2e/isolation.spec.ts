@@ -5,7 +5,10 @@ import { PLAIN_ORIGIN, screen, waitForReadyAcrossReloads } from './support';
 // GitHub Pages situation.
 
 test('@smoke GitHub Pages 形态：service worker 恢复隔离后可对弈', async ({ page }) => {
-  await page.goto(`${PLAIN_ORIGIN}/`);
+  // Pin the strong engine: this test is about the service worker carrying the
+  // isolation headers across the reload, and the strong net is the one whose
+  // size is known here.
+  await page.goto(`${PLAIN_ORIGIN}/?variant=strong`);
   await waitForReadyAcrossReloads(page);
 
   expect(await page.evaluate(() => crossOriginIsolated)).toBe(true);
