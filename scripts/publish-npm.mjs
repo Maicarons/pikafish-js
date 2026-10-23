@@ -31,9 +31,11 @@ if (!/^[a-zA-Z][a-zA-Z0-9._-]*$/.test(distTag)) {
 // Checking the stage queue keeps a re-run from trying to stage it twice.
 const alreadyStaged = stage && !dryRun ? stagedVersions() : new Set();
 
+// Engine first: if the scoped rules package cannot be staged (for example
+// when its npm org is missing), the main package still reaches the queue.
 const packages = [
-  { workspace: '@pikafish-js/rules', directory: 'packages/rules' },
   { workspace: 'pikafish-js', directory: 'packages/engine' },
+  { workspace: '@pikafish-js/rules', directory: 'packages/rules' },
 ];
 
 for (const { workspace, directory } of packages) {
