@@ -36,9 +36,9 @@
       "net": {
         "asset": "pikafish.nnue",
         "url": "https://github.com/official-pikafish/Networks/releases/download/master-net/pikafish.nnue",
-        "size": 50241100,
-        "sha256": "bf3982711150bf2f8b49e99cd93421320f6ca914cfcf131dad5eb7f2402573ac",
-        "downloadedAt": "2026-10-19"
+        "size": 50309463,
+        "sha256": "810ef8ecb0d0697755deac0a1d956296d762132f63b74fc4f8658f2ec5203f5b",
+        "downloadedAt": "2026-11-05"
       }
     },
     "lite": {
